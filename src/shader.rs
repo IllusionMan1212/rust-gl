@@ -18,18 +18,28 @@ impl Shader {
         gl::CreateShader(vertex_shader);
         gl::ShaderSource(vertex_shader, 1, &vertex_shader_source.as_ptr(), std::ptr::null());
         gl::CompileShader(vertex_shader);
+        let mut success1 = 0;
+        gl::GetShaderiv(vertex_shader, gl::COMPILE_STATUS, &mut success1);
+        println!("vertex shader compiled with status: {}", success1);
         // TODO: Check for errors
 
         let frag_shader = gl::CreateShader(gl::FRAGMENT_SHADER);
         gl::CreateShader(frag_shader);
         gl::ShaderSource(frag_shader, 1, &frag_shader_source.as_ptr(), std::ptr::null());
         gl::CompileShader(frag_shader);
+
+        let mut success2 = 0;
+        gl::GetShaderiv(frag_shader, gl::COMPILE_STATUS, &mut success2);
+        println!("frag shader compiled with status: {}", success2);
         // TODO: Check for errors
 
         let shader_program = gl::CreateProgram();
         gl::AttachShader(shader_program, vertex_shader);
         gl::AttachShader(shader_program, frag_shader);
         gl::LinkProgram(shader_program);
+
+        gl::DeleteShader(vertex_shader);
+        gl::DeleteShader(frag_shader);
 
         Ok(Self {
             program_id: shader_program,
@@ -42,20 +52,31 @@ impl Shader {
 
     pub fn set_bool(&self, name: &str, value: bool) {
         unsafe {
-            gl::Uniform1i(gl::GetUniformLocation(self.program_id, name.as_ptr() as *const i8), value as i32);
+            let c_str = std::ffi::CString::new(name).unwrap();
+            gl::Uniform1i(gl::GetUniformLocation(self.program_id, c_str.as_ptr()), value as i32);
         }
     }
 
     pub fn set_int(&self, name: &str, value: i32) {
         unsafe {
-            gl::Uniform1i(gl::GetUniformLocation(self.program_id, name.as_ptr() as *const i8), value);
+            let c_str = std::ffi::CString::new(name).unwrap();
+            gl::Uniform1i(gl::GetUniformLocation(self.program_id, c_str.as_ptr()), value);
         }
     }
 
     pub fn set_float(&self, name: &str, value: f32) {
         unsafe {
-            gl::Uniform1f(gl::GetUniformLocation(self.program_id, name.as_ptr() as *const i8), value);
+            let c_str = std::ffi::CString::new(name).unwrap();
+            gl::Uniform1f(gl::GetUniformLocation(self.program_id, c_str.as_ptr()), value);
         }
     }
 
+    pub fn get_float(&self, name: &str) -> f32 {
+        unsafe {
+            let c_str = std::ffi::CString::new(name).unwrap();
+            let mut value = 0.0;
+            gl::GetUniformfv(self.program_id, gl::GetUniformLocation(self.program_id, c_str.as_ptr()), &mut value);
+            value
+        }
+    }
 }

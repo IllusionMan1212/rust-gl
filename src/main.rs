@@ -18,7 +18,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     gl::load(|e| glfw.get_proc_address_raw(e) as *const std::os::raw::c_void);
 
-    let tex = image::io::Reader::open("textures/container.jpg")?.decode()?;
+    let tex1 = image::io::Reader::open("textures/container.jpg")?.decode()?;
+    let mut tex2 = image::io::Reader::open("textures/awesomeface.png")?.decode()?;
+    tex2 = tex2.flipv();
 
     unsafe {
         gl::Viewport(0, 0, 1200, 800);
@@ -61,28 +63,51 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         gl::VertexAttribPointer(2, 2, gl::FLOAT, gl::FALSE, 8 * std::mem::size_of::<f32>() as i32, (6 * std::mem::size_of::<f32>()) as *const std::os::raw::c_void);
         gl::EnableVertexAttribArray(2);
 
-        let mut texture: u32 = 0;
-        gl::GenTextures(1, &mut texture);
-        gl::BindTexture(gl::TEXTURE_2D, texture);
+        let mut texture1: u32 = 0;
+        let mut texture2: u32 = 0;
+
+        // texture 1
+        gl::GenTextures(1, &mut texture1);
+        gl::BindTexture(gl::TEXTURE_2D, texture1);
 
         gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::REPEAT as i32);
         gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::REPEAT as i32);
 
-        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR_MIPMAP_LINEAR as i32);
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR as i32);
         gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as i32);
 
-        gl::TexImage2D(gl::TEXTURE_2D, 0, gl::RGB as i32, tex.width() as i32, tex.height() as i32, 0, gl::RGB, gl::UNSIGNED_BYTE, tex.as_bytes().as_ptr() as *const std::ffi::c_void);
+        gl::TexImage2D(gl::TEXTURE_2D, 0, gl::RGB as i32, tex1.width() as i32, tex1.height() as i32, 0, gl::RGB, gl::UNSIGNED_BYTE, tex1.as_bytes().as_ptr() as *const std::ffi::c_void);
         gl::GenerateMipmap(gl::TEXTURE_2D);
+
+        // texture 2
+        gl::GenTextures(1, &mut texture2);
+        gl::BindTexture(gl::TEXTURE_2D, texture2);
+
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::REPEAT as i32);
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::REPEAT as i32);
+
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR as i32);
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as i32);
+
+        gl::TexImage2D(gl::TEXTURE_2D, 0, gl::RGBA as i32, tex2.width() as i32, tex2.height() as i32, 0, gl::RGBA, gl::UNSIGNED_BYTE, tex2.as_bytes().as_ptr() as *const std::ffi::c_void);
+        gl::GenerateMipmap(gl::TEXTURE_2D);
+
+        shader.use_shader();
+        shader.set_int("texture1", 0);
+        shader.set_int("texture2", 1);
 
         while !window.should_close() {
             for (_, event) in glfw::flush_messages(&events) {
-                handle_window_event(&mut window, event);
+                handle_window_event(&mut window, event, &shader);
             }
 
             gl::ClearColor(0.2, 0.3, 0.3, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT);
 
-            gl::BindTexture(gl::TEXTURE_2D, texture);
+            gl::ActiveTexture(gl::TEXTURE0);
+            gl::BindTexture(gl::TEXTURE_2D, texture1);
+            gl::ActiveTexture(gl::TEXTURE1);
+            gl::BindTexture(gl::TEXTURE_2D, texture2);
 
             shader.use_shader();
             gl::BindVertexArray(vao);
@@ -100,10 +125,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn handle_window_event(window: &mut glfw::Window, event: glfw::WindowEvent) {
+fn handle_window_event(window: &mut glfw::Window, event: glfw::WindowEvent, shader: &rust_gl::shader::Shader) {
     match event {
         glfw::WindowEvent::Key(Key::Escape, _, Action::Press, _) => {
             window.set_should_close(true);
+        }
+        glfw::WindowEvent::Key(Key::Up, _, Action::Press, _) => {
+            shader.set_float("mixValue", shader.get_float("mixValue") + 0.1);
+        }
+        glfw::WindowEvent::Key(Key::Down, _, Action::Press, _) => {
+            shader.set_float("mixValue", shader.get_float("mixValue") - 0.1);
         }
         glfw::WindowEvent::FramebufferSize(width, height) => {
             unsafe {
