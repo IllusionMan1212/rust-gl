@@ -1,5 +1,5 @@
 [package]
-name = "learnopengl"
+name = "rust-gl"
 version = "0.1.0"
 edition = "2021"
 
@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 glfw = "0.51.0"
 glad-gl = { path = "./3rdparty/glad-gl" }
+image = "0.24.6"

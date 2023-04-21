@@ -1,5 +1,7 @@
 use glfw::{Action, Context, Key};
 use glad_gl::gl;
+use rust_gl::shader;
+use image;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS)?;
@@ -16,35 +18,61 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     gl::load(|e| glfw.get_proc_address_raw(e) as *const std::os::raw::c_void);
 
+    let tex = image::io::Reader::open("textures/container.jpg")?.decode()?;
+
     unsafe {
         gl::Viewport(0, 0, 1200, 800);
 
-        let mut vertex_shader_source = std::fs::read_to_string("shaders/vertex.glsl")?;
-        vertex_shader_source.push('\0');
-        let vertex_shader_source = std::ffi::CStr::from_bytes_with_nul(vertex_shader_source.as_bytes())?;
+        let shader = shader::Shader::new("shaders/vertex.glsl", "shaders/frag.glsl")?;
 
-        let mut frag_shader_source = std::fs::read_to_string("shaders/frag.glsl")?;
-        frag_shader_source.push('\0');
-        let frag_shader_source = std::ffi::CStr::from_bytes_with_nul(frag_shader_source.as_bytes())?;
+        let vertices: [f32; 32] = [
+            0.5, 0.5, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, // top right
+            -0.5, 0.5, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, // top left
+            0.5, -0.5, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, // bottom right
+            -0.5, -0.5, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, // bottom left
+        ];
 
-        let vertex_shader = gl::CreateShader(gl::VERTEX_SHADER);
-        gl::CreateShader(vertex_shader);
-        gl::ShaderSource(vertex_shader, 1, &vertex_shader_source.as_ptr(), std::ptr::null());
-        gl::CompileShader(vertex_shader);
+        let indices: [u32; 6] = [
+            0, 1, 2,
+            1, 2, 3,
+        ];
 
-        let frag_shader = gl::CreateShader(gl::FRAGMENT_SHADER);
-        gl::CreateShader(frag_shader);
-        gl::ShaderSource(frag_shader, 1, &frag_shader_source.as_ptr(), std::ptr::null());
-        gl::CompileShader(frag_shader);
+        let mut vao: u32 = 0;
+        let mut vbo: u32 = 0;
+        let mut ebo: u32 = 0;
+        gl::GenVertexArrays(1, &mut vao);
+        gl::GenBuffers(1, &mut vbo);
+        gl::GenBuffers(1, &mut ebo);
 
-        let shader_program = gl::CreateProgram();
-        gl::AttachShader(shader_program, vertex_shader);
-        gl::AttachShader(shader_program, frag_shader);
-        gl::LinkProgram(shader_program);
+        gl::BindVertexArray(vao);
 
-        gl::DeleteShader(vertex_shader);
-        gl::DeleteShader(frag_shader);
+        gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
+        gl::BufferData(gl::ARRAY_BUFFER, (vertices.len() * std::mem::size_of::<f32>()) as isize, vertices.as_ptr() as *const std::os::raw::c_void, gl::STATIC_DRAW);
 
+        gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, ebo);
+        gl::BufferData(gl::ELEMENT_ARRAY_BUFFER, (indices.len() * std::mem::size_of::<u32>()) as isize, indices.as_ptr() as *const std::os::raw::c_void, gl::STATIC_DRAW);
+
+        gl::VertexAttribPointer(0, 3, gl::FLOAT, gl::FALSE, 8 * std::mem::size_of::<f32>() as i32, std::ptr::null());
+        gl::EnableVertexAttribArray(0);
+
+        gl::VertexAttribPointer(1, 3, gl::FLOAT, gl::FALSE, 8 * std::mem::size_of::<f32>() as i32, (3 * std::mem::size_of::<f32>()) as *const std::os::raw::c_void);
+        gl::EnableVertexAttribArray(1);
+
+        gl::VertexAttribPointer(2, 2, gl::FLOAT, gl::FALSE, 8 * std::mem::size_of::<f32>() as i32, (6 * std::mem::size_of::<f32>()) as *const std::os::raw::c_void);
+        gl::EnableVertexAttribArray(2);
+
+        let mut texture: u32 = 0;
+        gl::GenTextures(1, &mut texture);
+        gl::BindTexture(gl::TEXTURE_2D, texture);
+
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::REPEAT as i32);
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::REPEAT as i32);
+
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR_MIPMAP_LINEAR as i32);
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as i32);
+
+        gl::TexImage2D(gl::TEXTURE_2D, 0, gl::RGB as i32, tex.width() as i32, tex.height() as i32, 0, gl::RGB, gl::UNSIGNED_BYTE, tex.as_bytes().as_ptr() as *const std::ffi::c_void);
+        gl::GenerateMipmap(gl::TEXTURE_2D);
 
         while !window.should_close() {
             for (_, event) in glfw::flush_messages(&events) {
@@ -54,24 +82,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             gl::ClearColor(0.2, 0.3, 0.3, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT);
 
-            let vertices: [f32; 18] = [
-                -0.5, -0.5, 0.0, 1.0, 0.0, 0.0, // left, red
-                0.0,  0.5, 0.0, 0.0, 1.0, 0.0, // top, green
-                0.5, -0.5, 0.0, 0.0, 0.0, 1.0, // right, blue
-            ];
-            let triangle_vao = prepare_triangle_vao(vertices);
-            // let rect_vao = prepare_rect_vao();
+            gl::BindTexture(gl::TEXTURE_2D, texture);
 
-            gl::UseProgram(shader_program);
-            gl::BindVertexArray(triangle_vao);
-
-            // gl::PolygonMode(gl::FRONT_AND_BACK, gl::LINE);
-            gl::DrawArrays(gl::TRIANGLES, 0, 6);
-            // gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
+            shader.use_shader();
+            gl::BindVertexArray(vao);
+            gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
 
             glfw.poll_events();
             window.swap_buffers();
         }
+
+        gl::DeleteVertexArrays(1, &vao);
+        gl::DeleteBuffers(1, &vbo);
+        gl::DeleteBuffers(1, &ebo);
     }
 
     Ok(())
@@ -89,69 +112,4 @@ fn handle_window_event(window: &mut glfw::Window, event: glfw::WindowEvent) {
         }
         _ => {}
     }
-}
-
-unsafe fn prepare_triangle_vao(vertices: [f32; 18]) -> u32 {
-    let mut vao: u32 = 0;
-    let mut vbo: u32 = 0;
-    gl::GenVertexArrays(1, &mut vao);
-    gl::GenBuffers(1, &mut vbo);
-
-    gl::BindVertexArray(vao);
-
-    gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
-    gl::BufferData(gl::ARRAY_BUFFER, (vertices.len() * std::mem::size_of::<f32>()) as isize, vertices.as_ptr() as *const std::os::raw::c_void, gl::STATIC_DRAW);
-
-    // set the vertex attribute 'aPos' and enable it
-    gl::VertexAttribPointer(0, 3, gl::FLOAT, gl::FALSE, 6 * std::mem::size_of::<f32>() as i32, std::ptr::null());
-    gl::EnableVertexAttribArray(0);
-
-    // set the vertex attribute 'aColor' and enable it
-    gl::VertexAttribPointer(1, 3, gl::FLOAT, gl::FALSE, 6 * std::mem::size_of::<f32>() as i32, (3 * std::mem::size_of::<f32>()) as *const std::os::raw::c_void);
-    gl::EnableVertexAttribArray(1);
-
-    // unbind the VBO and VAO
-    gl::BindBuffer(gl::ARRAY_BUFFER, 0);
-    gl::BindVertexArray(0);
-
-    return vao;
-}
-
-unsafe fn prepare_rect_vao() -> u32 {
-    let vertices: [f32; 12] = [
-         0.5, 0.5, 0.0, // top right
-         -0.5, 0.5, 0.0, // top left
-         0.5, -0.5, 0.0, // bottom right
-         -0.5, -0.5, 0.0, // bottom left
-    ];
-
-    let indices: [u32; 6] = [
-        0, 1, 2,
-        1, 2, 3,
-    ];
-
-    let mut vao: u32 = 0;
-    let mut vbo: u32 = 0;
-    let mut ebo: u32 = 0;
-    gl::GenVertexArrays(1, &mut vao);
-    gl::GenBuffers(1, &mut vbo);
-    gl::GenBuffers(1, &mut ebo);
-
-    gl::BindVertexArray(vao);
-
-    gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
-    gl::BufferData(gl::ARRAY_BUFFER, (vertices.len() * std::mem::size_of::<f32>()) as isize, vertices.as_ptr() as *const std::os::raw::c_void, gl::STATIC_DRAW);
-    gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, ebo);
-    gl::BufferData(gl::ELEMENT_ARRAY_BUFFER, (indices.len() * std::mem::size_of::<u32>()) as isize, indices.as_ptr() as *const std::os::raw::c_void, gl::STATIC_DRAW);
-
-    gl::VertexAttribPointer(0, 3, gl::FLOAT, gl::FALSE, 3 * std::mem::size_of::<f32>() as i32, std::ptr::null());
-    gl::EnableVertexAttribArray(0);
-
-    // unbind VBO, EBO and VAO
-    gl::BindBuffer(gl::ARRAY_BUFFER, 0);
-    gl::BindVertexArray(0);
-    // EBO should NOT be unbound while a VAO is bound as the bound element buffer object IS stored in the VAO
-    gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, 0);
-
-    return vao;
 }
