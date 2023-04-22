@@ -122,13 +122,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             shader.use_shader();
 
-            let new_trans_mat = glm::ext::rotate(&ident_mat, glfw.get_time() as f32, glm::vec3(0.0, 0.0, 1.0));
-            let new_trans_mat = glm::ext::translate(&new_trans_mat, glm::vec3(0.5, -0.5, 0.0));
+            let new_trans_mat = glm::ext::translate(&ident_mat, glm::vec3(0.5, -0.5, 0.0));
+            let new_trans_mat = glm::ext::rotate(&new_trans_mat, glfw.get_time() as f32, glm::vec3(0.0, 0.0, 1.0));
 
             let c_str = std::ffi::CString::new("transform").unwrap();
             gl::UniformMatrix4fv(gl::GetUniformLocation(shader.program_id, c_str.as_ptr()), 1, gl::FALSE, new_trans_mat.as_array().as_ptr() as *const f32);
 
             gl::BindVertexArray(vao);
+            gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
+
+            let new_trans_mat = glm::ext::translate(&ident_mat, glm::vec3(-0.5, 0.5, 0.0));
+            let new_trans_mat = glm::ext::scale(&new_trans_mat, glm::vec3(glm::abs(glm::sin(glfw.get_time() as f32)), glm::abs(glm::sin(glfw.get_time() as f32)), 0.0));
+
+            let c_str = std::ffi::CString::new("transform").unwrap();
+            gl::UniformMatrix4fv(gl::GetUniformLocation(shader.program_id, c_str.as_ptr()), 1, gl::FALSE, new_trans_mat.as_array().as_ptr() as *const f32);
+
             gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
 
             glfw.poll_events();
