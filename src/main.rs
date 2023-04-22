@@ -39,6 +39,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             1, 2, 3,
         ];
 
+        let ident_mat = glm::mat4(
+            1., 0., 0., 0.,
+            0., 1., 0., 0.,
+            0., 0., 1., 0.,
+            0., 0., 0., 1.);
+
+        let transform_mat = glm::ext::rotate(&ident_mat, glm::radians(90.0), glm::vec3(0.0, 0.0, 1.0));
+        let transform_mat = glm::ext::scale(&transform_mat, glm::vec3(0.5, 0.5, 0.5));
+
+
         let mut vao: u32 = 0;
         let mut vbo: u32 = 0;
         let mut ebo: u32 = 0;
@@ -104,12 +114,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             gl::ClearColor(0.2, 0.3, 0.3, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT);
 
+
             gl::ActiveTexture(gl::TEXTURE0);
             gl::BindTexture(gl::TEXTURE_2D, texture1);
             gl::ActiveTexture(gl::TEXTURE1);
             gl::BindTexture(gl::TEXTURE_2D, texture2);
 
             shader.use_shader();
+
+            let new_trans_mat = glm::ext::rotate(&ident_mat, glfw.get_time() as f32, glm::vec3(0.0, 0.0, 1.0));
+            let new_trans_mat = glm::ext::translate(&new_trans_mat, glm::vec3(0.5, -0.5, 0.0));
+
+            let c_str = std::ffi::CString::new("transform").unwrap();
+            gl::UniformMatrix4fv(gl::GetUniformLocation(shader.program_id, c_str.as_ptr()), 1, gl::FALSE, new_trans_mat.as_array().as_ptr() as *const f32);
+
             gl::BindVertexArray(vao);
             gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
 
