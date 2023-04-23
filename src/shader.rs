@@ -20,7 +20,10 @@ impl Shader {
         gl::CompileShader(vertex_shader);
         let mut success1 = 0;
         gl::GetShaderiv(vertex_shader, gl::COMPILE_STATUS, &mut success1);
-        println!("vertex shader compiled with status: {}", success1);
+        println!("vertex shader {:?} compiled with status: {}",
+            std::path::Path::new(vertex_path).file_name().unwrap(),
+            success1
+        );
         // TODO: Check for errors
 
         let frag_shader = gl::CreateShader(gl::FRAGMENT_SHADER);
@@ -30,7 +33,10 @@ impl Shader {
 
         let mut success2 = 0;
         gl::GetShaderiv(frag_shader, gl::COMPILE_STATUS, &mut success2);
-        println!("frag shader compiled with status: {}", success2);
+        println!("frag shader {:?} compiled with status: {}",
+            std::path::Path::new(frag_path).file_name().unwrap(),
+            success2
+        );
         // TODO: Check for errors
 
         let shader_program = gl::CreateProgram();
@@ -83,5 +89,10 @@ impl Shader {
     pub unsafe fn set_mat4fv(&self, name: &str, value: &glm::Mat4) {
         let c_str = std::ffi::CString::new(name).unwrap();
         gl::UniformMatrix4fv(gl::GetUniformLocation(self.program_id, c_str.as_ptr()), 1, gl::FALSE, value.as_array().as_ptr() as *const f32);
+    }
+
+    pub unsafe fn set_3fv(&self, name: &str, value: glm::Vec3) {
+        let c_str = std::ffi::CString::new(name).unwrap();
+        gl::Uniform3fv(gl::GetUniformLocation(self.program_id, c_str.as_ptr()), 1, value.as_array() as *const f32);
     }
 }
