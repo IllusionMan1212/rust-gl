@@ -1,0 +1,4 @@
+- [x] integrate imgui in the program
+- [ ] basic imgui menus and stuff with default docking
+- [ ] render scene to texture and display inside imgui window
+- [ ] better grid
