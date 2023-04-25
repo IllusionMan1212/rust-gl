@@ -18,7 +18,7 @@ use glfw::{
     Action, Cursor, CursorMode, Key as GlfwKey, Modifiers, MouseButton, StandardCursor, Window,
     WindowEvent,
 };
-use imgui::{BackendFlags, ConfigFlags, Context, ImString, Io, Key, Ui};
+use imgui::{BackendFlags, ConfigFlags, Context, Io, Key, Ui};
 
 pub struct GlfwPlatform {
     hidpi_mode: ActiveHiDpiMode,
@@ -127,7 +127,7 @@ impl GlfwPlatform {
     /// Adds platform clipboard integration for the provided window. The caller **must** ensure that
     /// the `Window` outlives the imgui `Context` **and** that any imgui functions that may access
     /// the clipboard are called from the **main thread** (the thread that's executing the event polling).
-    pub unsafe fn set_clipboard_backend(&self, imgui: &mut Context, window: &Window) {
+    pub fn set_clipboard_backend(&self, imgui: &mut Context, window: &Window) {
         use glfw::Context;
         let window_ptr = window.window_ptr();
         imgui.set_clipboard_backend(Clipboard { window_ptr });
