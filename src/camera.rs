@@ -1,6 +1,5 @@
 use glfw::{Action, Key};
 use glm;
-
 pub struct Camera {
     pub position: glm::Vec3,
     pub front: glm::Vec3,
@@ -14,21 +13,22 @@ pub struct Camera {
 }
 
 impl Camera {
-    pub fn new(_speed: f32, sensitivity: f32) -> Camera {
+    pub fn new() -> Camera {
         Camera {
-            position: glm::vec3(4.0, 5.0, 5.0),
+            position: glm::vec3(0.0, 3.0, 3.0),
             front: glm::vec3(0.0, 0.0, -1.0),
             up: glm::vec3(0.0, 1.0, 0.0),
             pitch: 0.0,
             yaw: -90.0,
-            _speed,
-            speed: 0.0,
-            sensitivity,
+            _speed: 0.0,
+            speed: 10.0,
+            sensitivity: 0.05,
             fov: 45.0,
         }
     }
 
-    pub fn handle_mouse_input(&mut self, xoffset: f32, yoffset: f32) {
+    pub fn handle_mouse_input(&mut self, xoffset: f32, yoffset: f32, is_cursor_captured: bool) {
+        if !is_cursor_captured { return }
         let xoffset = xoffset * self.sensitivity;
         let yoffset = yoffset * self.sensitivity;
 
@@ -50,7 +50,8 @@ impl Camera {
         self.front = glm::normalize(front);
     }
 
-    pub fn handle_mouse_scroll(&mut self, yoffset: f32) {
+    pub fn handle_mouse_scroll(&mut self, yoffset: f32, is_cursor_captured: bool) {
+        if !is_cursor_captured { return }
         self.fov -= yoffset;
 
         if self.fov <= 1.0 {
@@ -61,23 +62,28 @@ impl Camera {
         }
     }
 
-    pub fn handle_keyboard(&mut self, window: &mut glfw::Window) {
+    pub fn handle_keyboard(&mut self, window: &mut glfw::Window, is_cursor_captured: bool) {
+        if !is_cursor_captured { return }
         if window.get_key(Key::W) == Action::Press {
-            self.position = self.position + (self.front * self.speed);
+            self.position = self.position + (self.front * self._speed);
         }
         if window.get_key(Key::S) == Action::Press {
-            self.position = self.position - (self.front * self.speed);
+            self.position = self.position - (self.front * self._speed);
         }
         if window.get_key(Key::A) == Action::Press {
-            self.position = self.position - (glm::normalize(glm::cross(self.front, self.up)) * self.speed);
+            self.position = self.position - (glm::normalize(glm::cross(self.front, self.up)) * self._speed);
         }
         if window.get_key(Key::D) == Action::Press {
-            self.position = self.position + (glm::normalize(glm::cross(self.front, self.up)) * self.speed);
+            self.position = self.position + (glm::normalize(glm::cross(self.front, self.up)) * self._speed);
         }
     }
 
     pub fn update_speed(&mut self, delta_time: f32) {
-        self.speed = self._speed * delta_time;
+        self._speed = self.speed * delta_time;
+    }
+
+    pub fn reset(&mut self) {
+        *self = Camera::new();
     }
 }
 
