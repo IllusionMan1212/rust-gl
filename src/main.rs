@@ -51,7 +51,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         gl::Viewport(0, 0, 800, 600);
 
         let shader = Shader::new("shaders/vertex.glsl", "shaders/frag.glsl")?;
-        let shader2 = Shader::new("shaders/grid_v.glsl", "shaders/grid_f.glsl")?;
+        let grid_shader = Shader::new("shaders/grid_v.glsl", "shaders/grid_f.glsl")?;
 
         let vertices: [f32; 180] = [
             -0.5, -0.5, -0.5, 0.0, 0.0,
@@ -173,9 +173,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         shader.set_int("texture1", 0);
         shader.set_int("texture2", 1);
 
-        shader2.use_shader();
-        shader2.set_float("near", 0.01);
-        shader2.set_float("far", 100.0);
+        grid_shader.use_shader();
+        grid_shader.set_float("near", 0.01);
+        grid_shader.set_float("far", 100.0);
 
         while !window.should_close() {
             let current_frame = glfw.get_time() as f32;
@@ -238,41 +238,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 gl::DrawArrays(gl::TRIANGLES, 0, 36);
             }
 
-            shader2.use_shader();
-            shader2.set_mat4fv("view", &view_mat);
-            shader2.set_mat4fv("projection", &projection_mat);
-            gl::DrawArrays(gl::TRIANGLES, 0, 6);
+            draw_grid(&grid_shader, &view_mat, &projection_mat);
 
-            // draw imgui ui
-
-            glfw_platform.prepare_frame(imgui.io_mut(), &mut window).expect("Failed to prepare imgui frame");
-
-            let ui = imgui.new_frame();
-            ui.dockspace_over_main_viewport();
-
-            draw_main_menu_bar(ui, &mut state, &mut window, delta_time);
-            if state.camera_coords_shown {
-                ui.window("Camera Coordinates")
-                    .size([300.0, 100.0], imgui::Condition::FirstUseEver)
-                    .opened(&mut state.camera_coords_shown)
-                    .build(|| {
-                        ui.text(format!("X: {:.4}\nY: {:.4}\nZ: {:.4}", state.camera.position.x, state.camera.position.y, state.camera.position.z));
-                    });
-            }
-
-            ui.end_frame_early();
-
-            if !state.is_cursor_captured {
-                let cursor = ui.mouse_cursor();
-                if last_cursor != cursor {
-                    last_cursor = cursor;
-                    glfw_platform.prepare_render(&ui, &mut window);
-                }
-            }
-
-            imgui.update_platform_windows();
-
-            renderer.render(&mut imgui);
+            draw_ui(&mut imgui, &renderer, &glfw_platform, &mut window, &mut state, delta_time, &mut last_cursor);
 
             glfw.poll_events();
             window.swap_buffers();
@@ -283,6 +251,54 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     Ok(())
+}
+
+fn draw_ui(
+    imgui: &mut imgui::Context,
+    renderer: &imgui_opengl_renderer::Renderer,
+    glfw_platform: &imgui_glfw_support::GlfwPlatform,
+    window: &mut glfw::Window,
+    state: &mut State,
+    delta_time: f32,
+    last_cursor: &mut Option<imgui::MouseCursor>
+) {
+    glfw_platform.prepare_frame(imgui.io_mut(), window).expect("Failed to prepare imgui frame");
+
+    let ui = imgui.new_frame();
+    ui.dockspace_over_main_viewport();
+
+    draw_main_menu_bar(ui, state, window, delta_time);
+    if state.camera_coords_shown {
+        ui.window("Camera Coordinates")
+            .size([300.0, 100.0], imgui::Condition::FirstUseEver)
+            .opened(&mut state.camera_coords_shown)
+            .build(|| {
+                ui.text(format!("X: {:.4}\nY: {:.4}\nZ: {:.4}", state.camera.position.x, state.camera.position.y, state.camera.position.z));
+            });
+    }
+
+    ui.end_frame_early();
+
+    if !state.is_cursor_captured {
+        let cursor = ui.mouse_cursor();
+        if *last_cursor != cursor {
+            *last_cursor = cursor;
+            glfw_platform.prepare_render(&ui, window);
+        }
+    }
+
+    imgui.update_platform_windows();
+
+    renderer.render(imgui);
+}
+
+fn draw_grid(shader: &rust_gl::shader::Shader, view_mat: &glm::Mat4, projection_mat: &glm::Mat4) {
+    shader.use_shader();
+    shader.set_mat4fv("view", &view_mat);
+    shader.set_mat4fv("projection", &projection_mat);
+    unsafe {
+        gl::DrawArrays(gl::TRIANGLES, 0, 6);
+    }
 }
 
 fn handle_window_event(window: &mut glfw::Window, event: &glfw::WindowEvent, shader: &rust_gl::shader::Shader, state: &mut State) {
@@ -344,9 +360,9 @@ fn draw_main_menu_bar(ui: &imgui::Ui, state: &mut State, window: &mut glfw::Wind
                 state.camera_coords_shown = !state.camera_coords_shown;
             }
         });
-        let mut si = mint::Vector2 { x: 0.0, y: 0.0 };
-        si.x = *ui.content_region_avail().get(0).unwrap() - ui.calc_text_size(format!("FPS: {:.1}", 1.0 / delta_time))[0];
-        ui.dummy(si);
+        let mut avail_size = mint::Vector2 { x: 0.0, y: 0.0 };
+        avail_size.x = *ui.content_region_avail().get(0).unwrap() - ui.calc_text_size(format!("FPS: {:.1}", 1.0 / delta_time))[0];
+        ui.dummy(avail_size);
         ui.text(format!("FPS: {:.1}", 1.0 / delta_time));
     });
 }
