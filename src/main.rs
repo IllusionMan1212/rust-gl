@@ -28,7 +28,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     glfw::WindowHint::OpenGlProfile(glfw::OpenGlProfileHint::Core);
     glfw::WindowHint::OpenGlForwardCompat(true);
 
-    let (mut window, events) = glfw.create_window(800, 600, "rust-gl", glfw::WindowMode::Windowed).expect("Failed to create GLFW window");
+    let (mut window, events) = glfw.create_window(1200, 800, "rust-gl", glfw::WindowMode::Windowed).expect("Failed to create GLFW window");
 
     window.set_all_polling(true);
     window.set_cursor_mode(glfw::CursorMode::Disabled);
@@ -48,7 +48,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         gl::Enable(gl::DEPTH_TEST);
         gl::Enable(gl::BLEND);
         gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
-        gl::Viewport(0, 0, 800, 600);
+        gl::Viewport(0, 0, 1200, 800);
 
         let shader = Shader::new("shaders/vertex.glsl", "shaders/frag.glsl")?;
         let grid_shader = Shader::new("shaders/grid_v.glsl", "shaders/grid_f.glsl")?;
