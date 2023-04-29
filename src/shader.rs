@@ -1,4 +1,5 @@
 use glad_gl::gl;
+use anyhow::{Context, Result};
 
 pub struct Shader {
     pub program_id: gl::GLuint,
@@ -6,11 +7,11 @@ pub struct Shader {
 
 impl Shader {
     pub unsafe fn new(vertex_path: &str, frag_path: &str) -> Result<Self, Box<dyn std::error::Error>> {
-        let mut vertex_shader_source = std::fs::read_to_string(vertex_path)?;
+        let mut vertex_shader_source = std::fs::read_to_string(vertex_path).with_context(|| format!("Failed to read vertex shader file: {}", vertex_path))?;
         vertex_shader_source.push('\0');
         let vertex_shader_source = std::ffi::CStr::from_bytes_with_nul(vertex_shader_source.as_bytes())?;
 
-        let mut frag_shader_source = std::fs::read_to_string(frag_path)?;
+        let mut frag_shader_source = std::fs::read_to_string(frag_path).with_context(|| format!("Failed to read frag shader file: {}", frag_path))?;
         frag_shader_source.push('\0');
         let frag_shader_source = std::ffi::CStr::from_bytes_with_nul(frag_shader_source.as_bytes())?;
 

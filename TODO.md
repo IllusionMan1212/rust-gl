@@ -1,5 +1,5 @@
 - [x] integrate imgui in the program
-- [x] better grid (has depth bug)
+- [x] better grid
 - [ ] basic imgui menus and stuff with default docking
 - [ ] render scene to texture and display inside imgui window
 - [ ] figure out what to put in the main menu bar

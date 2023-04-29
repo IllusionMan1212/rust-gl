@@ -4,3 +4,4 @@ pub mod camera;
 pub mod imgui_glfw_support;
 #[path="imgui-opengl-renderer/mod.rs"]
 pub mod imgui_opengl_renderer;
+pub mod utils;
