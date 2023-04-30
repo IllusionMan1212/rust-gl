@@ -280,7 +280,6 @@ fn main() -> anyhow::Result<(), Box<dyn std::error::Error>> {
                 gl::DrawArrays(gl::TRIANGLES, 0, 36);
             }
 
-
             if state.draw_grid {draw_grid(&grid_shader, &view_mat, &projection_mat);}
 
             draw_ui(&mut imgui, &renderer, &glfw_platform, &mut window, &mut state, delta_time, &mut last_cursor);
