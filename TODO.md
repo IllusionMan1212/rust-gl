@@ -1,5 +1,12 @@
-- [x] integrate imgui in the program
-- [x] better grid
-- [ ] basic imgui menus and stuff with default docking
-- [ ] render scene to texture and display inside imgui window
-- [ ] figure out what to put in the main menu bar
+- ui
+    - [x] integrate imgui in the program
+    - [ ] basic imgui menus and stuff with default docking
+    - [ ] render scene to texture and display inside imgui window
+    - [ ] figure out what to put in the main menu bar
+
+- graphics
+    - [x] better grid
+    - [ ] get the material properties ($clr.diffuse, $clr.ambient, etc..) from the mesh material and apply them to the shader
+    - [ ] some models (.glb only i think) have textures under the materials but they don't have names and no heights (investigate)
+    - [ ] other models have the textures as material properties with a "$tex." prefix for the property key
+    - [x] default normals and tex coords incase they are missing (default to 0.0 for all)

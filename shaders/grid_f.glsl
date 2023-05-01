@@ -53,7 +53,7 @@ void main()
     float fading = max(0, (0.5 - linearDepth));
 
     float lineWidth = 0.1; // width of the grid lines in world space units
-    float lineOpacity = 1.5; // opacity of the grid lines
+    float lineOpacity = 0.7; // opacity of the grid lines
 
     // Compute the grid colors at different resolutions and blend them together
     FragColor = (grid(fragPos3D, 5, lineWidth, lineOpacity) + grid(fragPos3D, 0.5, lineWidth, lineOpacity)) * float(t > 0);

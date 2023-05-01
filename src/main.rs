@@ -3,7 +3,7 @@ use glad_gl::gl;
 use mint;
 use anyhow;
 
-use rust_gl::{shader::*, camera::*, imgui_glfw_support, imgui_opengl_renderer, utils};
+use rust_gl::{shader::*, camera::*, imgui_glfw_support, imgui_opengl_renderer, model};
 
 struct State {
     camera_coords_shown: bool,
@@ -92,19 +92,6 @@ fn main() -> anyhow::Result<(), Box<dyn std::error::Error>> {
             -0.5, 0.5, -0.5, 0.0, 1.0, 0.0, 0.0, 1.0
         ];
 
-        let cubes: [glm::Vec3; 10] = [
-            glm::vec3( 0.0, 0.0, 0.0),
-            glm::vec3( 2.0, 5.0, -15.0),
-            glm::vec3(-1.5, -2.2, -2.5),
-            glm::vec3(-3.8, -2.0, -12.3),
-            glm::vec3( 2.4, -0.4, -3.5),
-            glm::vec3(-1.7, 3.0, -7.5),
-            glm::vec3( 1.3, -2.0, -2.5),
-            glm::vec3( 1.5, 2.0, -2.5),
-            glm::vec3( 1.5, 0.2, -1.5),
-            glm::vec3(-1.3, 1.0, -1.5)
-        ];
-
         let points_lights: [glm::Vec3; 4] = [
             glm::vec3(0.7, 0.2, 2.0),
             glm::vec3(2.3, -3.3, -4.0),
@@ -129,12 +116,8 @@ fn main() -> anyhow::Result<(), Box<dyn std::error::Error>> {
 
         // Object 1: Cube/container
         //
-        let mut vao: u32 = 0;
         let mut vbo: u32 = 0;
-        gl::GenVertexArrays(1, &mut vao);
         gl::GenBuffers(1, &mut vbo);
-
-        gl::BindVertexArray(vao);
 
         gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
         gl::BufferData(gl::ARRAY_BUFFER, (vertices.len() * core::mem::size_of::<f32>()) as isize, vertices.as_ptr() as *const std::ffi::c_void, gl::STATIC_DRAW);
@@ -150,9 +133,6 @@ fn main() -> anyhow::Result<(), Box<dyn std::error::Error>> {
         // texture attribute, maps to 'aTexCoords' in vertex shader with location 2
         gl::VertexAttribPointer(2, 2, gl::FLOAT, gl::FALSE, 8 * std::mem::size_of::<f32>() as i32, (6 * std::mem::size_of::<f32>()) as *const std::ffi::c_void);
         gl::EnableVertexAttribArray(2);
-
-        let diffuse_map = utils::load_texture("textures/container2.png")?;
-        let specular_map = utils::load_texture("textures/container2_specular.png")?;
 
         // Object 2: Light source
         let mut light_vao: u32 = 0;
@@ -171,15 +151,6 @@ fn main() -> anyhow::Result<(), Box<dyn std::error::Error>> {
         grid_shader.set_float("far", 100.0);
 
         shader.use_shader();
-        shader.set_int("material.diffuse", 0);
-        shader.set_int("material.specular", 1);
-        shader.set_float("material.shininess", 32.0);
-
-        gl::ActiveTexture(gl::TEXTURE0);
-        gl::BindTexture(gl::TEXTURE_2D, diffuse_map);
-        gl::ActiveTexture(gl::TEXTURE1);
-        gl::BindTexture(gl::TEXTURE_2D, specular_map);
-
 
         // set light uniforms
         for i in 0..points_lights.len() {
@@ -206,6 +177,8 @@ fn main() -> anyhow::Result<(), Box<dyn std::error::Error>> {
         shader.set_3fv("dirLight.ambient", glm::vec3(0.2, 0.2, 0.2));
         shader.set_3fv("dirLight.diffuse", glm::vec3(0.5, 0.5, 0.5));
         shader.set_3fv("dirLight.specular", glm::vec3(1.0, 1.0, 1.0));
+
+        let wabbit = model::Model::new("models/wabbit.obj")?;
 
         while !window.should_close() {
             let current_frame = glfw.get_time() as f32;
@@ -250,6 +223,9 @@ fn main() -> anyhow::Result<(), Box<dyn std::error::Error>> {
             // draw scene
             shader.use_shader();
 
+            let model_mat = glm::ext::translate(&ident_mat, glm::vec3(0.0, 0.0, 0.0));
+
+            shader.set_mat4fv("model", &model_mat);
             shader.set_mat4fv("view", &view_mat);
             shader.set_mat4fv("projection", &projection_mat);
 
@@ -257,15 +233,7 @@ fn main() -> anyhow::Result<(), Box<dyn std::error::Error>> {
             shader.set_3fv("spotLight.direction", state.camera.front);
             shader.set_3fv("viewPos", state.camera.position);
 
-            for i in 0..cubes.len() {
-                let model_mat = glm::ext::translate(&ident_mat, cubes[i]);
-                let angle = 20.0 * i as f32;
-                let model_mat = glm::ext::rotate(&model_mat, glfw.get_time() as f32 * glm::radians(angle), glm::vec3(1.0, 0.3, 0.5));
-                shader.set_mat4fv("model", &model_mat);
-
-                gl::BindVertexArray(vao);
-                gl::DrawArrays(gl::TRIANGLES, 0, 36);
-            }
+            wabbit.draw(&shader);
 
             light_shader.use_shader();
             light_shader.set_mat4fv("view", &view_mat);
@@ -288,7 +256,6 @@ fn main() -> anyhow::Result<(), Box<dyn std::error::Error>> {
             window.swap_buffers();
         }
 
-        gl::DeleteVertexArrays(1, &vao);
         gl::DeleteVertexArrays(1, &light_vao);
         gl::DeleteBuffers(1, &vbo);
     }

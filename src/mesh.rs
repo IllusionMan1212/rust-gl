@@ -1,15 +1,14 @@
 use glad_gl::gl;
 
-use crate::shader::Shader;
+use crate::{shader::Shader, utils};
 
+#[derive(Debug)]
 pub struct Mesh {
     pub vertices: Vec<Vertex>,
     pub indices: Vec<u32>,
     pub textures: Vec<Texture>,
 
     vao: u32,
-    vbo: u32, 
-    ebo: u32,
 }
 
 impl Mesh {
@@ -19,8 +18,8 @@ impl Mesh {
         let mut ebo = 0;
 
         unsafe {
-            gl::GenBuffers(1, &mut vbo);
             gl::GenVertexArrays(1, &mut vao);
+            gl::GenBuffers(1, &mut vbo);
             gl::GenBuffers(1, &mut ebo);
 
             gl::BindVertexArray(vao);
@@ -51,8 +50,6 @@ impl Mesh {
             indices,
             textures,
             vao,
-            vbo,
-            ebo,
         }
     }
 
@@ -71,29 +68,59 @@ impl Mesh {
                     specular += 1;
                 }
 
-                shader.set_float(format!("material.{}{}", name, if name == "texture_diffuse" { diffuse } else { specular }).as_str(), i as f32);
+                // TODO: set a default shininess of 32 until we can load it from the model
+                shader.set_float("material.shininess", 32.0);
+                shader.set_int(format!("material.{}{}", name, if name == "texture_diffuse" { diffuse } else { specular }).as_str(), i as i32);
                 gl::BindTexture(gl::TEXTURE_2D, self.textures[i].id);
             }
         }
 
         unsafe {
-            gl::ActiveTexture(gl::TEXTURE0);
-
             // draw Mesh
             gl::BindVertexArray(self.vao);
-            gl::DrawElements(gl::TRIANGLES, self.indices.len() as i32, gl::UNSIGNED_INT, self.indices.as_ptr() as *const std::ffi::c_void);
+            gl::DrawElements(gl::TRIANGLES, self.indices.len() as i32, gl::UNSIGNED_INT, std::ptr::null());
+
+            // reset stuff to default
+            gl::ActiveTexture(gl::TEXTURE0);
             gl::BindVertexArray(0);
         }
     }
 }
 
+#[derive(Clone, Debug)]
+#[repr(packed(2))]
 pub struct Vertex {
     pub position: glm::Vec3,
     pub normal: glm::Vec3,
     pub tex_coords: glm::Vec2,
 }
 
+impl Vertex {
+    pub fn new(position: glm::Vec3, normal: glm::Vec3, tex_coords: glm::Vec2) -> Self {
+        Vertex {
+            position,
+            normal,
+            tex_coords
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
 pub struct Texture {
     pub id: u32,
     pub typ: String,
+    pub path: std::path::PathBuf,
+}
+
+impl Texture {
+    pub fn new(path: std::path::PathBuf, type_name: &str) -> Self {
+        // TODO: don't just explode here
+        let id = utils::load_texture(path.to_str().unwrap()).unwrap();
+
+        Texture {
+            id,
+            typ: type_name.to_string(),
+            path,
+        }
+    }
 }
