@@ -167,7 +167,7 @@ fn main() -> anyhow::Result<(), Box<dyn std::error::Error>> {
         shader.set_float("spotLight.cutOff", glm::cos(glm::radians(12.5)));
         shader.set_float("spotLight.outerCutOff", glm::cos(glm::radians(15.0)));
         shader.set_3fv("spotLight.ambient", glm::vec3(0.2, 0.2, 0.2));
-        shader.set_3fv("spotLight.diffuse", glm::vec3(1.0, 1.0, 1.0));
+        shader.set_3fv("spotLight.diffuse", glm::vec3(0.2, 0.2, 0.2));
         shader.set_3fv("spotLight.specular", glm::vec3(1.0, 1.0, 1.0));
         shader.set_float("spotLight.constant", 1.0);
         shader.set_float("spotLight.linear", 0.09);
@@ -178,7 +178,7 @@ fn main() -> anyhow::Result<(), Box<dyn std::error::Error>> {
         shader.set_3fv("dirLight.diffuse", glm::vec3(0.5, 0.5, 0.5));
         shader.set_3fv("dirLight.specular", glm::vec3(1.0, 1.0, 1.0));
 
-        let wabbit = model::Model::new("models/wabbit.obj")?;
+        let cube = model::Model::new("models/Lantern.gltf")?;
 
         while !window.should_close() {
             let current_frame = glfw.get_time() as f32;
@@ -224,6 +224,7 @@ fn main() -> anyhow::Result<(), Box<dyn std::error::Error>> {
             shader.use_shader();
 
             let model_mat = glm::ext::translate(&ident_mat, glm::vec3(0.0, 0.0, 0.0));
+            let model_mat = glm::ext::scale(&model_mat, glm::vec3(0.1, 0.1, 0.1));
 
             shader.set_mat4fv("model", &model_mat);
             shader.set_mat4fv("view", &view_mat);
@@ -233,7 +234,7 @@ fn main() -> anyhow::Result<(), Box<dyn std::error::Error>> {
             shader.set_3fv("spotLight.direction", state.camera.front);
             shader.set_3fv("viewPos", state.camera.position);
 
-            wabbit.draw(&shader);
+            cube.draw(&shader);
 
             light_shader.use_shader();
             light_shader.set_mat4fv("view", &view_mat);

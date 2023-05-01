@@ -7,12 +7,13 @@ pub struct Mesh {
     pub vertices: Vec<Vertex>,
     pub indices: Vec<u32>,
     pub textures: Vec<Texture>,
+    pub material: Material,
 
     vao: u32,
 }
 
 impl Mesh {
-    pub fn new(vertices: Vec<Vertex>, indices: Vec<u32>, textures: Vec<Texture>) -> Mesh {
+    pub fn new(vertices: Vec<Vertex>, indices: Vec<u32>, textures: Vec<Texture>, material: Material) -> Mesh {
         let mut vao = 0;
         let mut vbo = 0;
         let mut ebo = 0;
@@ -49,6 +50,7 @@ impl Mesh {
             vertices,
             indices,
             textures,
+            material,
             vao,
         }
     }
@@ -56,6 +58,14 @@ impl Mesh {
     pub fn draw(&self, shader: &Shader) {
         let mut diffuse = 1;
         let mut specular = 1;
+
+        shader.use_shader();
+        shader.set_3fv("material.ambient", self.material.ambient);
+        shader.set_3fv("material.diffuse", self.material.diffuse);
+        shader.set_3fv("material.specular", self.material.specular);
+        // TODO: normalize the shininess value (32.0 as default for now because broken values cause
+        // the model to be black or rather cause the light to just be absorbed and barely reflected)
+        shader.set_float("material.shininess", 32.0);
 
         for i in 0..self.textures.len() {
             unsafe {
@@ -68,8 +78,6 @@ impl Mesh {
                     specular += 1;
                 }
 
-                // TODO: set a default shininess of 32 until we can load it from the model
-                shader.set_float("material.shininess", 32.0);
                 shader.set_int(format!("material.{}{}", name, if name == "texture_diffuse" { diffuse } else { specular }).as_str(), i as i32);
                 gl::BindTexture(gl::TEXTURE_2D, self.textures[i].id);
             }
@@ -121,6 +129,27 @@ impl Texture {
             id,
             typ: type_name.to_string(),
             path,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct Material {
+    pub name: String,
+    pub ambient: glm::Vec3,
+    pub diffuse: glm::Vec3,
+    pub specular: glm::Vec3,
+    pub shininess: f32,
+}
+
+impl Material {
+    pub fn new(name: String, ambient: glm::Vec3, diffuse: glm::Vec3, specular: glm::Vec3, shininess: f32) -> Self {
+        Material {
+            name,
+            ambient,
+            diffuse,
+            specular,
+            shininess,
         }
     }
 }

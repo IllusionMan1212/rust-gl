@@ -6,7 +6,11 @@
 
 - graphics
     - [x] better grid
-    - [ ] get the material properties ($clr.diffuse, $clr.ambient, etc..) from the mesh material and apply them to the shader
+    - [x] get the basic material properties ($clr.diffuse, $clr.ambient, etc..) from the mesh material and apply them to the shader
+    - [ ] get the rest of the material properties
     - [ ] some models (.glb only i think) have textures under the materials but they don't have names and no heights (investigate)
     - [ ] other models have the textures as material properties with a "$tex." prefix for the property key
     - [x] default normals and tex coords incase they are missing (default to 0.0 for all)
+    - [ ] models with more than a single mesh have all their meshes loaded at 0.0, 0.0, 0.0 with a default rotation of 0.0. apply transforms to meshes
+    - [ ] russimp panics when unwrapping an option that relates to materials when loading the ToyCar.glb/gltf model (investigate)
+    - [ ] normalize shiniess value (seems to range anywhere from 0.0 to 500.0+) (read assimp docs)

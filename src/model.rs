@@ -1,4 +1,4 @@
-use crate::{mesh::{Mesh, Vertex, Texture}, shader::Shader};
+use crate::{mesh::{Mesh, Vertex, Texture, Material}, shader::Shader};
 use russimp;
 use anyhow::{Context, Result};
 
@@ -64,12 +64,72 @@ fn process_mesh(
     let mat = &scene.materials[mesh.material_index as usize];
     println!("{:?}", mat);
 
+    let material = process_material(mat);
+
     let mut diffuse_maps = load_material_textures(mat, russimp::material::TextureType::Diffuse, "texture_diffuse", dir, loaded_textures);
     textures.append(&mut diffuse_maps);
     let mut specular_maps = load_material_textures(mat, russimp::material::TextureType::Specular, "texture_specular", dir, loaded_textures);
     textures.append(&mut specular_maps);
 
-    return Mesh::new(vertices, indices, textures);
+
+    return Mesh::new(vertices, indices, textures, material);
+}
+
+fn process_material(mat: &russimp::material::Material) -> Material {
+    let mut mat_name = String::from("Default_Mat");
+    let mut ambient = glm::vec3(0.2, 0.2, 0.2);
+    let mut diffuse = glm::vec3(0.7, 0.7, 0.7);
+    let mut specular = glm::vec3(0.1, 0.1, 0.1);
+    let mut shininess = 32.0;
+
+    // TODO: better way of mapping properties
+    for property in mat.properties.iter() {
+        match property.key.as_str() {
+            "$clr.ambient" => {
+                ambient = match &property.data {
+                    russimp::material::PropertyTypeInfo::FloatArray(a) => {
+                        glm::vec3(a[0], a[1], a[2])
+                    },
+                    _ => panic!("Property should not be this type: {}", property.key)
+                };
+            },
+            "$clr.diffuse" => {
+                diffuse = match &property.data {
+                    russimp::material::PropertyTypeInfo::FloatArray(a) => {
+                        glm::vec3(a[0], a[1], a[2])
+                    },
+                    _ => panic!("Property should not be this type: {}", property.key)
+                };
+            },
+            "$clr.specular" => {
+                specular = match &property.data {
+                    russimp::material::PropertyTypeInfo::FloatArray(a) => {
+                        glm::vec3(a[0], a[1], a[2])
+                    },
+                    _ => panic!("Property should not be this type: {}", property.key)
+                }
+            }
+            "?mat.name" => {
+                mat_name = match &property.data {
+                    russimp::material::PropertyTypeInfo::String(s) => {
+                        s.to_string()
+                    },
+                    _ => panic!("Property should not be this type: {}", property.key)
+                };
+            }
+            "$mat.shininess" => {
+                shininess = match &property.data {
+                    russimp::material::PropertyTypeInfo::FloatArray(a) => {
+                        a[0]
+                    },
+                    _ => panic!("Property should not be this type: {}", property.key)
+                };
+            }
+            _ => println!("Unsupported material property: {:?}", property.key),
+        }
+    }
+
+    Material::new(mat_name, ambient, diffuse, specular, shininess)
 }
 
 fn load_material_textures(
@@ -88,6 +148,10 @@ fn load_material_textures(
             let texture = tex.borrow();
             let mut skip = false;
             let tex_filename = &texture.filename;
+            // HACK: fix this
+            if tex_filename.is_empty() {
+                continue;
+            }
             println!("texture filename: {}", tex_filename);
             let path = dir.join(tex_filename);
 
