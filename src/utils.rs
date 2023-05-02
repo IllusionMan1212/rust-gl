@@ -1,4 +1,5 @@
 use glad_gl::gl;
+use glm;
 
 pub fn load_texture(path: &str) -> Result<u32, image::error::ImageError> {
     let tex = image::io::Reader::open(path)?.decode()?;
@@ -29,3 +30,11 @@ pub fn load_texture(path: &str) -> Result<u32, image::error::ImageError> {
     Ok(texture_id)
 }
 
+pub fn mat_ident() -> glm::Mat4 {
+    glm::mat4(
+        1., 0., 0., 0.,
+        0., 1., 0., 0.,
+        0., 0., 1., 0.,
+        0., 0., 0., 1.
+    )
+}

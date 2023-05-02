@@ -11,6 +11,9 @@
     - [ ] some models (.glb only i think) have textures under the materials but they don't have names and no heights (investigate)
     - [ ] other models have the textures as material properties with a "$tex." prefix for the property key
     - [x] default normals and tex coords incase they are missing (default to 0.0 for all)
-    - [ ] models with more than a single mesh have all their meshes loaded at 0.0, 0.0, 0.0 with a default rotation of 0.0. apply transforms to meshes
+    - [|] models with more than a single mesh have all their meshes loaded at 0.0, 0.0, 0.0 with a default rotation of 0.0. apply transforms to meshes
+        - [ ] some gltf models seem to have a weird transform applied to them (investigate) (possibly related to rotations, no idea if assimp is parsing them incorrectly or im doing something wrong)
     - [ ] russimp panics when unwrapping an option that relates to materials when loading the ToyCar.glb/gltf model (investigate)
     - [ ] normalize shiniess value (seems to range anywhere from 0.0 to 500.0+) (read assimp docs)
+    - [ ] parse nodes and show them in the UI instead of only showing meshes
+    - [ ] when parsing a model, if the nodes have a parent list them under it, otherwise just throw the nodes as they are in the scene

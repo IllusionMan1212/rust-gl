@@ -1,27 +1,8 @@
 use glfw::{Action, Context, Key, Modifiers};
 use glad_gl::gl;
-use mint;
 use anyhow;
 
-use rust_gl::{shader::*, camera::*, imgui_glfw_support, imgui_opengl_renderer, model};
-
-struct State {
-    camera_coords_shown: bool,
-    is_cursor_captured: bool,
-    draw_grid: bool,
-    camera: Camera,
-}
-
-impl Default for State {
-    fn default() -> Self {
-        Self {
-            camera_coords_shown: false,
-            is_cursor_captured: true,
-            draw_grid: true,
-            camera: Camera::new(),
-        }
-    }
-}
+use rust_gl::{shader, model, ui};
 
 fn main() -> anyhow::Result<(), Box<dyn std::error::Error>> {
     let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS)?;
@@ -36,11 +17,11 @@ fn main() -> anyhow::Result<(), Box<dyn std::error::Error>> {
     window.set_cursor_mode(glfw::CursorMode::Disabled);
     window.make_current();
 
-    let mut state = State::default();
+    let mut state = ui::State::default();
 
     glfw.set_swap_interval(glfw::SwapInterval::Sync(1));
 
-    let (mut imgui, glfw_platform, renderer) = init_imgui(&mut window);
+    let (mut imgui, glfw_platform, renderer) = ui::init_imgui(&mut window);
 
     unsafe {
         gl::Enable(gl::DEPTH_TEST);
@@ -48,9 +29,9 @@ fn main() -> anyhow::Result<(), Box<dyn std::error::Error>> {
         gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
         gl::Viewport(0, 0, 1200, 800);
 
-        let shader = Shader::new("shaders/vertex.glsl", "shaders/frag.glsl")?;
-        let light_shader = Shader::new("shaders/vertex.glsl", "shaders/light_f.glsl")?;
-        let grid_shader = Shader::new("shaders/grid_v.glsl", "shaders/grid_f.glsl")?;
+        let shader = shader::Shader::new("shaders/vertex.glsl", "shaders/frag.glsl")?;
+        let light_shader = shader::Shader::new("shaders/vertex.glsl", "shaders/light_f.glsl")?;
+        let grid_shader = shader::Shader::new("shaders/grid_v.glsl", "shaders/grid_f.glsl")?;
 
         let vertices: [f32; 288] = [
             // positions // normals // texture coords
@@ -178,7 +159,8 @@ fn main() -> anyhow::Result<(), Box<dyn std::error::Error>> {
         shader.set_3fv("dirLight.diffuse", glm::vec3(0.5, 0.5, 0.5));
         shader.set_3fv("dirLight.specular", glm::vec3(1.0, 1.0, 1.0));
 
-        let cube = model::Model::new("models/Lantern.gltf")?;
+        let lantern = model::Model::new("models/Lantern.gltf")?;
+        state.objects.push(lantern);
 
         while !window.should_close() {
             let current_frame = glfw.get_time() as f32;
@@ -223,10 +205,6 @@ fn main() -> anyhow::Result<(), Box<dyn std::error::Error>> {
             // draw scene
             shader.use_shader();
 
-            let model_mat = glm::ext::translate(&ident_mat, glm::vec3(0.0, 0.0, 0.0));
-            let model_mat = glm::ext::scale(&model_mat, glm::vec3(0.1, 0.1, 0.1));
-
-            shader.set_mat4fv("model", &model_mat);
             shader.set_mat4fv("view", &view_mat);
             shader.set_mat4fv("projection", &projection_mat);
 
@@ -234,7 +212,9 @@ fn main() -> anyhow::Result<(), Box<dyn std::error::Error>> {
             shader.set_3fv("spotLight.direction", state.camera.front);
             shader.set_3fv("viewPos", state.camera.position);
 
-            cube.draw(&shader);
+            for obj in &state.objects {
+                obj.draw(&shader);
+            }
 
             light_shader.use_shader();
             light_shader.set_mat4fv("view", &view_mat);
@@ -251,7 +231,7 @@ fn main() -> anyhow::Result<(), Box<dyn std::error::Error>> {
 
             if state.draw_grid {draw_grid(&grid_shader, &view_mat, &projection_mat);}
 
-            draw_ui(&mut imgui, &renderer, &glfw_platform, &mut window, &mut state, delta_time, &mut last_cursor);
+            ui::draw_ui(&mut imgui, &renderer, &glfw_platform, &mut window, &mut state, delta_time, &mut last_cursor);
 
             glfw.poll_events();
             window.swap_buffers();
@@ -264,45 +244,6 @@ fn main() -> anyhow::Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn draw_ui(
-    imgui: &mut imgui::Context,
-    renderer: &imgui_opengl_renderer::Renderer,
-    glfw_platform: &imgui_glfw_support::GlfwPlatform,
-    window: &mut glfw::Window,
-    state: &mut State,
-    delta_time: f32,
-    last_cursor: &mut Option<imgui::MouseCursor>
-) {
-    glfw_platform.prepare_frame(imgui.io_mut(), window).expect("Failed to prepare imgui frame");
-
-    let ui = imgui.new_frame();
-    ui.dockspace_over_main_viewport();
-
-    draw_main_menu_bar(ui, state, window, delta_time);
-    if state.camera_coords_shown {
-        ui.window("Camera Coordinates")
-            .size([300.0, 100.0], imgui::Condition::FirstUseEver)
-            .opened(&mut state.camera_coords_shown)
-            .build(|| {
-                ui.text(format!("X: {:.4}\nY: {:.4}\nZ: {:.4}", state.camera.position.x, state.camera.position.y, state.camera.position.z));
-            });
-    }
-
-    ui.end_frame_early();
-
-    if !state.is_cursor_captured {
-        let cursor = ui.mouse_cursor();
-        if *last_cursor != cursor {
-            *last_cursor = cursor;
-            glfw_platform.prepare_render(&ui, window);
-        }
-    }
-
-    imgui.update_platform_windows();
-
-    renderer.render(imgui);
-}
-
 fn draw_grid(shader: &rust_gl::shader::Shader, view_mat: &glm::Mat4, projection_mat: &glm::Mat4) {
     shader.use_shader();
     shader.set_mat4fv("view", &view_mat);
@@ -312,7 +253,7 @@ fn draw_grid(shader: &rust_gl::shader::Shader, view_mat: &glm::Mat4, projection_
     }
 }
 
-fn handle_window_event(window: &mut glfw::Window, event: &glfw::WindowEvent, shader: &rust_gl::shader::Shader, state: &mut State) {
+fn handle_window_event(window: &mut glfw::Window, event: &glfw::WindowEvent, shader: &rust_gl::shader::Shader, state: &mut ui::State) {
     match event {
         glfw::WindowEvent::Key(Key::Q, _, Action::Press, Modifiers::Control) => {
             window.set_should_close(true);
@@ -349,62 +290,5 @@ fn handle_window_event(window: &mut glfw::Window, event: &glfw::WindowEvent, sha
         }
         _ => {}
     }
-}
-
-fn draw_main_menu_bar(ui: &imgui::Ui, state: &mut State, window: &mut glfw::Window, delta_time: f32) {
-    ui.main_menu_bar(|| {
-        ui.menu("File", || {
-            if ui.menu_item_config("Import Model(s)").shortcut("Ctrl+O").build() {
-                // TODO: open file dialog
-            }
-            if ui.menu_item_config("Quit").shortcut("Ctrl+Q").build() {
-                // TODO: cleanup stuff
-                window.set_should_close(true);
-            }
-        });
-        ui.menu("View", || {
-            // TODO: add menu items
-            if ui.menu_item("Reset Camera") {
-                state.camera.reset();
-            }
-            if ui.menu_item_config("Show Camera Coords").selected(state.camera_coords_shown).build() {
-                state.camera_coords_shown = !state.camera_coords_shown;
-            }
-            if ui.menu_item_config("Toggle grid").selected(state.draw_grid).build() {
-                state.draw_grid = !state.draw_grid;
-            }
-        });
-        let mut avail_size = mint::Vector2 { x: 0.0, y: 0.0 };
-        avail_size.x = *ui.content_region_avail().get(0).unwrap() - ui.calc_text_size(format!("FPS: {:.1}", 1.0 / delta_time))[0];
-        ui.dummy(avail_size);
-        ui.text(format!("FPS: {:.1}", 1.0 / delta_time));
-    });
-}
-
-fn init_imgui(window: &mut glfw::Window) -> (imgui::Context, imgui_glfw_support::GlfwPlatform, imgui_opengl_renderer::Renderer) {
-    let mut imgui = imgui::Context::create();
-    imgui.set_ini_filename(None);
-    imgui.io_mut().config_flags.insert(imgui::ConfigFlags::DOCKING_ENABLE);
-    imgui.io_mut().config_flags.set(imgui::ConfigFlags::NAV_ENABLE_KEYBOARD, true);
-
-    let mut glfw_platform = imgui_glfw_support::GlfwPlatform::init(&mut imgui);
-    glfw_platform.attach_window(
-        imgui.io_mut(),
-        &window,
-        imgui_glfw_support::HiDpiMode::Rounded
-    );
-
-    imgui
-        .fonts()
-        .add_font(&[imgui::FontSource::DefaultFontData { config: None }]);
-
-    imgui.io_mut().font_global_scale = (1.0 / glfw_platform.hidpi_factor()) as f32;
-
-    gl::load(|e| window.get_proc_address(e) as *const std::os::raw::c_void);
-
-    let renderer = imgui_opengl_renderer::Renderer::new(&mut imgui);
-    glfw_platform.set_clipboard_backend(&mut imgui, &window);
-
-    (imgui, glfw_platform, renderer)
 }
 

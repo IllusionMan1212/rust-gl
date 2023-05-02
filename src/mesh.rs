@@ -4,6 +4,9 @@ use crate::{shader::Shader, utils};
 
 #[derive(Debug)]
 pub struct Mesh {
+    pub name: String,
+    pub transformation: glm::Mat4,
+
     pub vertices: Vec<Vertex>,
     pub indices: Vec<u32>,
     pub textures: Vec<Texture>,
@@ -13,7 +16,7 @@ pub struct Mesh {
 }
 
 impl Mesh {
-    pub fn new(vertices: Vec<Vertex>, indices: Vec<u32>, textures: Vec<Texture>, material: Material) -> Mesh {
+    pub fn new(name: &str, vertices: Vec<Vertex>, indices: Vec<u32>, textures: Vec<Texture>, material: Material, transformation: glm::Mat4) -> Mesh {
         let mut vao = 0;
         let mut vbo = 0;
         let mut ebo = 0;
@@ -47,11 +50,13 @@ impl Mesh {
         }
 
         Mesh {
+            name: name.to_string(),
             vertices,
             indices,
             textures,
             material,
             vao,
+            transformation
         }
     }
 
@@ -60,6 +65,12 @@ impl Mesh {
         let mut specular = 1;
 
         shader.use_shader();
+
+        let model_mat = glm::ext::translate(&utils::mat_ident(), glm::vec3(0.0, 0.0, 0.0));
+        let model_mat = glm::ext::scale(&model_mat, glm::vec3(0.1, 0.1, 0.1));
+        let model_mat = model_mat * self.transformation;
+        shader.set_mat4fv("model", &model_mat);
+
         shader.set_3fv("material.ambient", self.material.ambient);
         shader.set_3fv("material.diffuse", self.material.diffuse);
         shader.set_3fv("material.specular", self.material.specular);
@@ -151,5 +162,11 @@ impl Material {
             specular,
             shininess,
         }
+    }
+}
+
+impl std::fmt::Display for Material {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "Ambient: {:?}\nDiffuse: {:?}\nSpecular: {:?}\nShininess: {}", self.ambient, self.diffuse, self.specular, self.shininess)
     }
 }

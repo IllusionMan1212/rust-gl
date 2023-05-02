@@ -4,7 +4,8 @@ use anyhow::{Context, Result};
 
 #[derive(Debug)]
 pub struct Model {
-    meshes: Vec<Mesh>,
+    pub name: String,
+    pub meshes: Vec<Mesh>,
 }
 
 fn process_node<'a>(
@@ -12,15 +13,28 @@ fn process_node<'a>(
     scene: &'a russimp::scene::Scene,
     meshes: &mut Vec<Mesh>,
     dir: &std::path::PathBuf,
-    loaded_textures: &mut Vec<Texture>
+    loaded_textures: &mut Vec<Texture>,
+    init_trans: &glm::Mat4,
 ) {
+    let node_trans = glm::mat4(
+        node.transformation.a1, node.transformation.a2, node.transformation.a3, node.transformation.a4,
+        node.transformation.b1, node.transformation.b2, node.transformation.b3, node.transformation.b4,
+        node.transformation.c1, node.transformation.c2, node.transformation.c3, node.transformation.c4,
+        node.transformation.d1, node.transformation.d2, node.transformation.d3, node.transformation.d4,
+    );
+    let new_trans = *init_trans * node_trans;
+
+    println!("node: {}", node.name);
+    println!("{:#?}", new_trans);
+    // println!("{:#?}", node.transformation);
+
     for i in 0..node.meshes.len() {
         let mesh = &scene.meshes[node.meshes[i] as usize];
-        meshes.push(process_mesh(mesh, scene, dir, loaded_textures));
+        meshes.push(process_mesh(mesh, scene, dir, loaded_textures, &glm::transpose(&new_trans)));
     }
 
     for child in node.children.borrow().clone().into_iter() {
-        process_node(&child, scene, meshes, dir, loaded_textures);
+        process_node(&child, scene, meshes, dir, loaded_textures, &node_trans);
     }
 }
 
@@ -28,14 +42,16 @@ fn process_mesh(
     mesh: &russimp::mesh::Mesh,
     scene: &russimp::scene::Scene,
     dir: &std::path::PathBuf,
-    loaded_textures: &mut Vec<Texture>
+    loaded_textures: &mut Vec<Texture>,
+    transformation: &glm::Mat4,
 ) -> Mesh {
     let mut vertices = vec![];
     let mut indices = vec![];
     let mut textures = vec![];
 
     for i in 0..mesh.vertices.len() {
-        let pos = glm::vec3(mesh.vertices[i].x, mesh.vertices[i].y, mesh.vertices[i].z);
+        let pos = glm::vec4(mesh.vertices[i].x, mesh.vertices[i].y, mesh.vertices[i].z, 1.0);
+        // let pos = *transformation * pos;
 
         let norm = match mesh.normals.len() {
             0 => glm::vec3(0.0, 0.0, 0.0),
@@ -50,7 +66,7 @@ fn process_mesh(
             None => glm::vec2(0.0, 0.0)
         };
 
-        vertices.push(Vertex::new(pos, norm, tex_coords));
+        vertices.push(Vertex::new(pos.truncate(3), norm, tex_coords));
     }
 
     for i in 0..mesh.faces.len() {
@@ -59,10 +75,10 @@ fn process_mesh(
         }
     }
 
-    println!("material count: {}", scene.materials.len());
-    println!("material index: {}", mesh.material_index);
+    // println!("material count: {}", scene.materials.len());
+    // println!("material index: {}", mesh.material_index);
     let mat = &scene.materials[mesh.material_index as usize];
-    println!("{:?}", mat);
+    // println!("{:?}", mat);
 
     let material = process_material(mat);
 
@@ -72,7 +88,7 @@ fn process_mesh(
     textures.append(&mut specular_maps);
 
 
-    return Mesh::new(vertices, indices, textures, material);
+    return Mesh::new(mesh.name.as_str(), vertices, indices, textures, material, *transformation);
 }
 
 fn process_material(mat: &russimp::material::Material) -> Material {
@@ -125,7 +141,7 @@ fn process_material(mat: &russimp::material::Material) -> Material {
                     _ => panic!("Property should not be this type: {}", property.key)
                 };
             }
-            _ => println!("Unsupported material property: {:?}", property.key),
+            _ => {},
         }
     }
 
@@ -196,9 +212,16 @@ impl Model {
 
         let mut loaded_textures = vec![];
         let mut meshes = vec![];
-        process_node(&root_node, &scene, &mut meshes, &directory, &mut loaded_textures);
+        let init_trans_mat = glm::mat4(
+            1., 0., 0., 0.,
+            0., 1., 0., 0.,
+            0., 0., 1., 0.,
+            0., 0., 0., 1.
+        );
+        process_node(&root_node, &scene, &mut meshes, &directory, &mut loaded_textures, &init_trans_mat);
 
         Ok(Model {
+            name: root_node.name.to_owned(),
             meshes,
         })
     }

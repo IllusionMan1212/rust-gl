@@ -7,3 +7,4 @@ pub mod imgui_opengl_renderer;
 pub mod utils;
 pub mod mesh;
 pub mod model;
+pub mod ui;
