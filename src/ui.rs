@@ -54,15 +54,17 @@ pub fn draw_main_menu_bar(ui: &imgui::Ui, state: &mut State, window: &mut glfw::
     ui.main_menu_bar(|| {
         ui.menu("File", || {
             if ui.menu_item_config("Import Model(s)").shortcut("Ctrl+O").build() {
-                let models = rfd::FileDialog::new()
+                let models = match rfd::FileDialog::new()
                     .set_title("Import Model(s)")
                     .set_directory("./")
                     .add_filter("All supported files", &["obj", "fbx", "gltf", "glb"])
                     .add_filter("Wavefront OBJ (.obj)", &["obj"])
                     .add_filter("FBX (.fbx)", &["fbx"])
                     .add_filter("glTF (.gltf, .glb)", &["gltf", "glb"])
-                    .pick_files()
-                    .unwrap();
+                    .pick_files() {
+                        Some(m) => m,
+                        None => return,
+                    };
                 for model_path in &models {
                     let model = model::Model::new(model_path.to_str().unwrap());
                     match model {
