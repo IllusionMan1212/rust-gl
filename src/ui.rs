@@ -58,9 +58,9 @@ pub fn draw_main_menu_bar(ui: &imgui::Ui, state: &mut State, window: &mut glfw::
                     .set_title("Import Model(s)")
                     .set_directory("./")
                     .add_filter("All supported files", &["obj", "fbx", "gltf", "glb"])
-                    .add_filter("Wavefront OBJ", &["obj"])
-                    .add_filter("FBX", &["fbx"])
-                    .add_filter("glTF", &["gltf", "glb"])
+                    .add_filter("Wavefront OBJ (.obj)", &["obj"])
+                    .add_filter("FBX (.fbx)", &["fbx"])
+                    .add_filter("glTF (.gltf, .glb)", &["gltf", "glb"])
                     .pick_files()
                     .unwrap();
                 for model_path in &models {
@@ -133,17 +133,21 @@ fn draw_mesh_hierarchy(ui: &imgui::Ui, mesh: &mesh::Mesh, i: usize) {
 
 fn draw_object_hierarchy(ui: &imgui::Ui, state: &mut State, idx: usize) -> bool {
     let object = &state.objects[idx];
-    ui.tree_node_config(format!("{}###{}", object.name.as_str(), idx))
-        .flags(imgui::TreeNodeFlags::ALLOW_ITEM_OVERLAP)
-        .build(|| {
-        for (j, mesh) in object.meshes.iter().enumerate() {
-            draw_mesh_hierarchy(ui, mesh, j);
+    if let Some(_t) = ui.begin_table_with_sizing("Objects Table", 2, imgui::TableFlags::SIZING_STRETCH_PROP, [0.0, 0.0], 0.0) {
+        ui.table_next_row();
+        ui.table_next_column();
+        ui.tree_node_config(format!("{}###{}", object.name.as_str(), idx))
+            .build(|| {
+                for (j, mesh) in object.meshes.iter().enumerate() {
+                    draw_mesh_hierarchy(ui, mesh, j);
+                }
+            });
+
+        ui.table_next_column();
+        if ui.small_button(format!("X###{}-{}", object.name.as_str(), idx)) {
+            println!("Removing object {}", object.name);
+            return true;
         }
-    });
-    ui.same_line();
-    if ui.small_button(format!("X###{}-{}", object.name.as_str(), idx)) {
-        println!("Removing object {}", object.name);
-        return true;
     }
 
     return false;
