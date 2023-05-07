@@ -5,6 +5,8 @@ use crate::{shader::Shader, utils};
 #[derive(Debug)]
 pub struct Mesh {
     pub name: String,
+    pub position: glm::Vec3,
+    pub scale: glm::Vec3,
     pub transformation: glm::Mat4,
 
     pub vertices: Vec<Vertex>,
@@ -49,6 +51,10 @@ impl Mesh {
             gl::BindVertexArray(0);
         }
 
+        // matrix is transposed, so we need to get the columns instead of the rows
+        let position = glm::vec3(transformation.c3.x, transformation.c3.y, transformation.c3.z);
+        let scale = glm::vec3(transformation.c0.x, transformation.c1.y, transformation.c2.z);
+
         Mesh {
             name: name.to_string(),
             vertices,
@@ -56,6 +62,8 @@ impl Mesh {
             textures,
             material,
             vao,
+            position,
+            scale,
             transformation
         }
     }
@@ -66,9 +74,10 @@ impl Mesh {
 
         shader.use_shader();
 
-        let model_mat = glm::ext::translate(&utils::mat_ident(), glm::vec3(0.0, 0.0, 0.0));
-        let model_mat = glm::ext::scale(&model_mat, glm::vec3(0.1, 0.1, 0.1));
-        let model_mat = model_mat * self.transformation;
+        let model_mat = glm::ext::scale(&utils::mat_ident(), self.scale);
+        // TODO: should we do rotation ??
+        let model_mat = glm::ext::translate(&model_mat, self.position);
+        // let model_mat = model_mat * self.transformation;
         shader.set_mat4fv("model", &model_mat);
 
         shader.set_3fv("material.ambient", self.material.ambient);

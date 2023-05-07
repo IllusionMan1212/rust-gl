@@ -120,7 +120,30 @@ pub fn draw_main_menu_bar(ui: &imgui::Ui, state: &mut State, window: &mut glfw::
 //     style.pop();
 // }
 
-fn draw_mesh_hierarchy(ui: &imgui::Ui, mesh: &mesh::Mesh, i: usize) {
+fn draw_transformations(ui: &imgui::Ui, mesh: &mut mesh::Mesh) {
+    imgui::Drag::new("###XPos")
+        .range(f32::NEG_INFINITY, f32::INFINITY)
+        .speed(0.1)
+        .display_format("X: %.3f")
+        .build(ui, &mut mesh.position.x);
+    imgui::Drag::new("###YPos")
+        .range(f32::NEG_INFINITY, f32::INFINITY)
+        .speed(0.1)
+        .display_format("Y: %.3f")
+        .build(ui, &mut mesh.position.y);
+    imgui::Drag::new("###ZPos")
+        .range(f32::NEG_INFINITY, f32::INFINITY)
+        .speed(0.1)
+        .display_format("Z: %.3f")
+        .build(ui, &mut mesh.position.z);
+    imgui::Drag::new("Scale")
+        .range(f32::NEG_INFINITY, f32::INFINITY)
+        .speed(0.1)
+        .display_format("%.3f")
+        .build_array(ui, mesh.scale.as_array_mut());
+}
+
+fn draw_mesh_hierarchy(ui: &imgui::Ui, mesh: &mut mesh::Mesh, i: usize) {
     ui.tree_node_config(format!("{}###{}", mesh.name.as_str(), i)).build(|| {
         ui.text(format!("Vertices: {}", mesh.vertices.len()));
         ui.text(format!("Textures: {}", mesh.textures.len()));
@@ -128,19 +151,19 @@ fn draw_mesh_hierarchy(ui: &imgui::Ui, mesh: &mesh::Mesh, i: usize) {
             ui.text(format!("{}", mesh.material));
         });
         ui.tree_node_config("Transformations").build(|| {
-            ui.text(format!("{:#?}", mesh.transformation));
+            draw_transformations(ui, mesh);
         })
     });
 }
 
 fn draw_object_hierarchy(ui: &imgui::Ui, state: &mut State, idx: usize) -> bool {
-    let object = &state.objects[idx];
+    let object = &mut state.objects[idx];
     if let Some(_t) = ui.begin_table_with_sizing("Objects Table", 2, imgui::TableFlags::SIZING_STRETCH_PROP, [0.0, 0.0], 0.0) {
         ui.table_next_row();
         ui.table_next_column();
         ui.tree_node_config(format!("{}###{}", object.name.as_str(), idx))
             .build(|| {
-                for (j, mesh) in object.meshes.iter().enumerate() {
+                for (j, mesh) in &mut object.meshes.iter_mut().enumerate() {
                     draw_mesh_hierarchy(ui, mesh, j);
                 }
             });

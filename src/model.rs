@@ -1,4 +1,4 @@
-use crate::{mesh::{Mesh, Vertex, Texture, Material}, shader::Shader};
+use crate::{mesh::{Mesh, Vertex, Texture, Material}, shader::Shader, utils};
 use russimp;
 use anyhow::{Context, Result};
 
@@ -25,7 +25,8 @@ fn process_node<'a>(
     let new_trans = *init_trans * node_trans;
 
     println!("node: {}", node.name);
-    println!("{:#?}", new_trans);
+    println!("{:#?}", node_trans);
+    println!("{:#?}", node.metadata);
     // println!("{:#?}", node.transformation);
 
     for i in 0..node.meshes.len() {
@@ -210,14 +211,14 @@ impl Model {
         // TODO: don't just explode here
         let directory = std::path::Path::new(path).parent().unwrap().to_path_buf();
 
+        // TODO: handle fbx metadata that contains the indices and values of the proper axes
+        // reference: https://github.com/assimp/assimp/issues/849#issuecomment-538982013
+        println!("scene metadata {:#?}", scene.metadata);
+        println!("root metadata {:#?}", root_node.metadata);
+
         let mut loaded_textures = vec![];
         let mut meshes = vec![];
-        let init_trans_mat = glm::mat4(
-            1., 0., 0., 0.,
-            0., 1., 0., 0.,
-            0., 0., 1., 0.,
-            0., 0., 0., 1.
-        );
+        let init_trans_mat = utils::mat_ident();
         process_node(&root_node, &scene, &mut meshes, &directory, &mut loaded_textures, &init_trans_mat);
 
         Ok(Model {

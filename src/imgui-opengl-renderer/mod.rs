@@ -103,7 +103,7 @@ impl Renderer {
       gl::PixelStorei(gl::UNPACK_ROW_LENGTH, 0);
 
       {
-        let mut atlas = imgui.fonts();
+        let atlas = imgui.fonts();
 
         let texture = atlas.build_rgba32_texture();
         gl::TexImage2D(gl::TEXTURE_2D, 0, gl::RGBA as _, texture.width as _, texture.height as _, 0, gl::RGBA, gl::UNSIGNED_BYTE, texture.data.as_ptr() as _);
