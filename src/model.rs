@@ -22,16 +22,16 @@ fn process_node<'a>(
         node.transformation.c1, node.transformation.c2, node.transformation.c3, node.transformation.c4,
         node.transformation.d1, node.transformation.d2, node.transformation.d3, node.transformation.d4,
     );
-    let new_trans = *init_trans * node_trans;
+    let mut new_trans = *init_trans * node_trans;
 
-    println!("node: {}", node.name);
-    println!("{:#?}", node_trans);
-    println!("{:#?}", node.metadata);
+    // println!("node: {}", node.name);
+    // println!("{:#?}", node_trans);
+    // println!("{:#?}", node.metadata);
     // println!("{:#?}", node.transformation);
 
     for i in 0..node.meshes.len() {
         let mesh = &scene.meshes[node.meshes[i] as usize];
-        meshes.push(process_mesh(mesh, scene, dir, loaded_textures, &glm::transpose(&new_trans)));
+        meshes.push(process_mesh(mesh, scene, dir, loaded_textures, &mut new_trans));
     }
 
     for child in node.children.borrow().clone().into_iter() {
@@ -44,7 +44,7 @@ fn process_mesh(
     scene: &russimp::scene::Scene,
     dir: &std::path::PathBuf,
     loaded_textures: &mut Vec<Texture>,
-    transformation: &glm::Mat4,
+    transformation: &mut glm::Mat4,
 ) -> Mesh {
     let mut vertices = vec![];
     let mut indices = vec![];
@@ -89,7 +89,7 @@ fn process_mesh(
     textures.append(&mut specular_maps);
 
 
-    return Mesh::new(mesh.name.as_str(), vertices, indices, textures, material, *transformation);
+    return Mesh::new(mesh.name.as_str(), vertices, indices, textures, material, transformation);
 }
 
 fn process_material(mat: &russimp::material::Material) -> Material {

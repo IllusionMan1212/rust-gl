@@ -139,8 +139,13 @@ fn draw_transformations(ui: &imgui::Ui, mesh: &mut mesh::Mesh) {
     imgui::Drag::new("Scale")
         .range(f32::NEG_INFINITY, f32::INFINITY)
         .speed(0.1)
-        .display_format("%.3f")
+        .display_format("%.7f")
         .build_array(ui, mesh.scale.as_array_mut());
+    imgui::Drag::new("Rotation")
+        .range(f32::NEG_INFINITY, f32::INFINITY)
+        .speed(1.0)
+        .display_format("%.2f")
+        .build_array(ui, mesh.rotation.as_array_mut());
 }
 
 fn draw_mesh_hierarchy(ui: &imgui::Ui, mesh: &mut mesh::Mesh, i: usize) {
