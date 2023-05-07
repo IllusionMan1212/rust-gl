@@ -24,3 +24,6 @@
         - [ ] scaling is currently done relative to 0.0, 0.0, 0.0, but in blender (and other programs?) it's relative to where the origin point of the mesh is
         - [ ] i think hierarchical transformations are still not being applied correctly
         - [ ] im also convinced rotations lose data when converted from a 3x3 matrix to euler angles (investigate)
+        - [ ] current rotation implementation is supposed to only work for non-negative scale factors, a better implementation is here https://math.stackexchange.com/a/3554913
+        - [ ] parent transformations need to be stored in each child's struct (or perhaps the nodes need to be linked lists so we can easily access the parent/child's properties if we need them) this is needed so when a parent changes transformation we can apply the parent's transformation as well
+    - [ ] object selection with outline
