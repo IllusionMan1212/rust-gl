@@ -2,7 +2,7 @@
     - [x] integrate imgui in the program
     - [ ] basic imgui menus and stuff with default docking
     - [ ] render scene to texture and display inside imgui window
-    - [ ] figure out what to put in the main menu bar
+    - [x] figure out what to put in the main menu bar
 
 - graphics
     - [x] better grid
@@ -12,8 +12,11 @@
     - [ ] other models have the textures as material properties with a "$tex." prefix for the property key
     - [x] default normals and tex coords incase they are missing (default to 0.0 for all)
     - [|] models with more than a single mesh have all their meshes loaded at 0.0, 0.0, 0.0 with a default rotation of 0.0. apply transforms to meshes
-        - [ ] some gltf models seem to have a weird transform applied to them (investigate) (possibly related to rotations, no idea if assimp is parsing them incorrectly or im doing something wrong)
+        - [x] some gltf models seem to have a weird transform applied to them (investigate) (possibly related to rotations, no idea if assimp is parsing them incorrectly or im doing something wrong)
+        - [x] seems like the position and scale is applied correctly now, still need to properly extract the rotation from the transform matrix and apply that as well
+        - [ ] some gltf models still don't have the correct transform applied to them (rotations ??)
     - [ ] russimp panics when unwrapping an option that relates to materials when loading the ToyCar.glb/gltf model (investigate)
-    - [ ] normalize shiniess value (seems to range anywhere from 0.0 to 500.0+) (read assimp docs)
+    - [ ] normalize shininess value (seems to range anywhere from 0.0 to 500.0+) (read assimp docs)
     - [ ] parse nodes and show them in the UI instead of only showing meshes
     - [ ] when parsing a model, if the nodes have a parent list them under it, otherwise just throw the nodes as they are in the scene
+    - [ ] .fbx (and others ??) that are exported from blender (or is this just how the format is?) have metadata that contains the proper axes for the model (up, front) and unit scale factors and other data
