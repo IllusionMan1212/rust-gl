@@ -1,8 +1,9 @@
 - ui
     - [x] integrate imgui in the program
-    - [ ] basic imgui menus and stuff with default docking
-    - [ ] render scene to texture and display inside imgui window
+    - [x] basic imgui menus and stuff with default docking
+    - [x] render scene to texture and display inside imgui window
     - [x] figure out what to put in the main menu bar
+    - [ ] more settings to control the scene (arbitrary but i just need something on the todo)
 
 - graphics
     - [x] better grid

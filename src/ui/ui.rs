@@ -1,24 +1,28 @@
 use glad_gl::gl;
 use mint;
 
-use crate::{camera::Camera, model, imgui_glfw_support, imgui_opengl_renderer, mesh};
+use crate::{camera::Camera, model, imgui_glfw_support, imgui_opengl_renderer, mesh, ui};
 
 pub struct State {
     pub camera_coords_shown: bool,
     pub is_cursor_captured: bool,
     pub draw_grid: bool,
+    pub first_frame_drawn: bool,
     pub camera: Camera,
     pub objects: Vec<model::Model>,
+    pub viewport_size: [f32; 2],
 }
 
 impl Default for State {
     fn default() -> Self {
         Self {
             camera_coords_shown: false,
-            is_cursor_captured: true,
+            first_frame_drawn: false,
+            is_cursor_captured: false,
             draw_grid: true,
             camera: Camera::new(),
             objects: vec![],
+            viewport_size: [0.0, 0.0],
         }
     }
 }
@@ -200,6 +204,66 @@ fn draw_objects_window(ui: &imgui::Ui, state: &mut State) {
         });
 }
 
+fn create_initial_docking(ui: &imgui::Ui, state: &mut State) {
+    let flags =
+        // No borders etc for top-level window
+        imgui::WindowFlags::NO_DECORATION | imgui::WindowFlags::NO_MOVE
+        // Show menu bar
+        | imgui::WindowFlags::MENU_BAR
+        // Don't raise window on focus (as it'll clobber floating windows)
+        | imgui::WindowFlags::NO_BRING_TO_FRONT_ON_FOCUS | imgui::WindowFlags::NO_NAV_FOCUS
+        // Don't want the dock area's parent to be dockable!
+        | imgui::WindowFlags::NO_DOCKING
+        ;
+
+    let padding = ui.push_style_var(imgui::StyleVar::WindowPadding([0.0, 0.0]));
+    let rounding = ui.push_style_var(imgui::StyleVar::WindowRounding(0.0));
+
+    ui.window("Main Window")
+        .flags(flags)
+        .position([0.0, 0.0], imgui::Condition::Always)
+        .size(ui.io().display_size, imgui::Condition::Always)
+        .build(|| {
+            // Create top-level docking area, needs to be made early (before docked windows)
+            let ui_d = ui::docking::UiDocking {};
+            let space = ui_d.dockspace("MainDockArea");
+
+            // Set up splits, docking windows. This can be done conditionally,
+            // or calling it every time is also mostly fine
+            if !state.first_frame_drawn {
+                space.split(
+                    imgui::Direction::Right,
+                    0.3,
+                    |right| {
+                        right.dock_window("Objects");
+                    },
+                    |left| {
+                        left.dock_window("Scene");
+                    },
+                );
+            }
+        });
+
+    padding.pop();
+    rounding.pop();
+}
+
+fn draw_viewport(ui: &imgui::Ui, state: &mut State, texture: u32) {
+    ui.window("Scene")
+        .size(ui.content_region_avail(), imgui::Condition::FirstUseEver)
+        .no_decoration()
+        .build(|| {
+            let size = ui.content_region_avail();
+            state.viewport_size = size;
+
+            imgui::Image::new(imgui::TextureId::new(texture.try_into().unwrap()), size)
+                // flip the image vertically
+                .uv0([0.0, 1.0])
+                .uv1([1.0, 0.0])
+                .build(ui);
+        });
+}
+
 pub fn draw_ui(
     imgui: &mut imgui::Context,
     renderer: &imgui_opengl_renderer::Renderer,
@@ -207,14 +271,16 @@ pub fn draw_ui(
     window: &mut glfw::Window,
     state: &mut State,
     delta_time: f32,
-    last_cursor: &mut Option<imgui::MouseCursor>
+    last_cursor: &mut Option<imgui::MouseCursor>,
+    scene_fb_texture: u32,
 ) {
     glfw_platform.prepare_frame(imgui.io_mut(), window).expect("Failed to prepare imgui frame");
 
     let ui = imgui.new_frame();
-    ui.dockspace_over_main_viewport();
+    create_initial_docking(ui, state);
 
     draw_main_menu_bar(ui, state, window, delta_time);
+
     if state.camera_coords_shown {
         ui.window("Camera Coordinates")
             .size([300.0, 100.0], imgui::Condition::FirstUseEver)
@@ -225,6 +291,7 @@ pub fn draw_ui(
     }
 
     draw_objects_window(ui, state);
+    draw_viewport(ui, state, scene_fb_texture);
 
     ui.end_frame_early();
 
@@ -239,4 +306,5 @@ pub fn draw_ui(
     imgui.update_platform_windows();
 
     renderer.render(imgui);
-    }
+    state.first_frame_drawn = true;
+}
