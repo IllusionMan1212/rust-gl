@@ -86,9 +86,6 @@ pub fn draw_main_menu_bar(ui: &imgui::Ui, state: &mut State, window: &mut glfw::
             }
         });
         ui.menu("View", || {
-            if ui.menu_item("Reset Camera") {
-                state.camera.reset();
-            }
             if ui.menu_item_config("Show Camera Coords").selected(state.camera_coords_shown).build() {
                 state.camera_coords_shown = !state.camera_coords_shown;
             }
@@ -256,6 +253,9 @@ fn draw_viewport(ui: &imgui::Ui, state: &mut State, texture: u32) {
             let size = ui.content_region_avail();
             state.viewport_size = size;
 
+            if ui.button("Reset Camera") {
+                state.camera.reset();
+            }
             imgui::Image::new(imgui::TextureId::new(texture.try_into().unwrap()), size)
                 // flip the image vertically
                 .uv0([0.0, 1.0])
