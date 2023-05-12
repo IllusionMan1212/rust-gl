@@ -1,7 +1,7 @@
 use glad_gl::gl;
 use mint;
 
-use crate::{camera::Camera, model, imgui_glfw_support, imgui_opengl_renderer, mesh, ui};
+use crate::{camera::Camera, model, imgui_glfw_support, imgui_opengl_renderer, mesh, ui, log};
 
 pub struct State {
     pub camera_coords_shown: bool,
@@ -11,6 +11,7 @@ pub struct State {
     pub camera: Camera,
     pub objects: Vec<model::Model>,
     pub viewport_size: [f32; 2],
+    log: log::Log,
 }
 
 impl Default for State {
@@ -23,6 +24,7 @@ impl Default for State {
             camera: Camera::new(),
             objects: vec![],
             viewport_size: [0.0, 0.0],
+            log: log::Log::default(),
         }
     }
 }
@@ -74,8 +76,10 @@ pub fn draw_main_menu_bar(ui: &imgui::Ui, state: &mut State, window: &mut glfw::
                     match model {
                         Ok(m) => state.objects.push(m),
                         Err(e) => {
-                            println!("Error loading model: {}", e);
-                            // TODO: show error in imgui overlay
+                            let error = format!("Error loading model: {}", e);
+                            println!("{}", error);
+
+                            state.log.history.push(log::LogMessage::new(log::LogLevel::Error, &error));
                         },
                     }
                 }
@@ -99,27 +103,6 @@ pub fn draw_main_menu_bar(ui: &imgui::Ui, state: &mut State, window: &mut glfw::
         ui.text(format!("FPS: {:.1}", 1.0 / delta_time));
     });
 }
-
-// TODO: finish this
-// fn draw_error_overlay(ui: &imgui::Ui) {
-//     const DISTANCE: f32 = 10.0;
-//     let window_pos = [DISTANCE, DISTANCE];
-//     let style = ui.push_style_color(imgui::StyleColor::WindowBg, [0.0, 0.0, 0.0, 0.5]);
-//     ui.window("Error Overlay")
-//         .opened(opened)
-//         .position(window_pos, imgui::Condition::Always)
-//         .title_bar(false)
-//         .resizable(false)
-//         .always_auto_resize(true)
-//         .movable(false)
-//         .save_settings(false)
-//         .build(|| {
-//             ui.text(
-//                 "Simple overlay\nin the corner of the screen.",
-//             );
-//         });
-//     style.pop();
-// }
 
 fn draw_transformations(ui: &imgui::Ui, mesh: &mut mesh::Mesh) {
     imgui::Drag::new("###XPos")
@@ -176,7 +159,10 @@ fn draw_object_hierarchy(ui: &imgui::Ui, state: &mut State, idx: usize) -> bool 
 
         ui.table_next_column();
         if ui.small_button(format!("X###{}-{}", object.name.as_str(), idx)) {
-            println!("Removing object {}", object.name);
+            let output = format!("Removing object {}", object.name);
+            println!("{}", output);
+
+            state.log.history.push(log::LogMessage::new(log::LogLevel::Info, &output));
             return true;
         }
     }
@@ -197,6 +183,27 @@ fn draw_objects_window(ui: &imgui::Ui, state: &mut State) {
                 }
 
                 i = i + 1;
+            }
+        });
+}
+
+fn draw_log(ui: &imgui::Ui, state: &mut State) {
+    ui.window("Console")
+        .size([500.0, 200.0], imgui::Condition::FirstUseEver)
+        .build(|| {
+            ui.child_window("###ConsoleHistory")
+                .size([0.0, -27.0])
+                .build(|| {
+                    for line in state.log.history.iter() {
+                        let style = ui.push_style_color(imgui::StyleColor::Text, line.level.clone());
+                        ui.text_wrapped(line.message.clone());
+                        style.pop();
+                    }
+                });
+
+            ui.separator();
+            if ui.button("Clear") {
+                state.log.clear();
             }
         });
 }
@@ -229,15 +236,24 @@ fn create_initial_docking(ui: &imgui::Ui, state: &mut State) {
             // or calling it every time is also mostly fine
             if !state.first_frame_drawn {
                 space.split(
-                    imgui::Direction::Right,
-                    0.3,
-                    |right| {
-                        right.dock_window("Objects");
+                    imgui::Direction::Up,
+                    0.8,
+                    |top| {
+                        top.split(
+                            imgui::Direction::Right,
+                            0.3,
+                            |right| {
+                                right.dock_window("Objects");
+                            },
+                            |left| {
+                                left.dock_window("Scene");
+                            },
+                        );
                     },
-                    |left| {
-                        left.dock_window("Scene");
-                    },
-                );
+                    |bottom| {
+                        bottom.dock_window("Console");
+                    }
+                )
             }
         });
 
@@ -249,6 +265,7 @@ fn draw_viewport(ui: &imgui::Ui, state: &mut State, texture: u32) {
     ui.window("Scene")
         .size(ui.content_region_avail(), imgui::Condition::FirstUseEver)
         .no_decoration()
+        .resizable(true)
         .build(|| {
             let size = ui.content_region_avail();
             state.viewport_size = size;
@@ -291,6 +308,7 @@ pub fn draw_ui(
     }
 
     draw_objects_window(ui, state);
+    draw_log(ui, state);
     draw_viewport(ui, state, scene_fb_texture);
 
     ui.end_frame_early();
