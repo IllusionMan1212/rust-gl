@@ -1,4 +1,5 @@
 use glad_gl::gl;
+use anyhow::Result;
 
 use crate::{shader::Shader, utils};
 
@@ -19,7 +20,7 @@ fn decompose_mat(matrix: &mut glm::Mat4) -> (glm::Vec3, glm::Vec3, glm::Vec3) {
         matrix[2][0] / scale_x, matrix[2][1] / scale_y, matrix[2][2] / scale_z,
     );
 
-    println!("original rot: {:#?}", matrix);
+    // println!("original rot: {:#?}", matrix);
 
     let roll = matrix[1][0].atan2(matrix[0][0]).to_degrees();
     let yaw = (-matrix[2][0]).atan2((matrix[2][1].powi(2) + matrix[2][2].powi(2)).sqrt()).to_degrees();
@@ -56,7 +57,7 @@ fn create_rotation_matrix(pitch: f32, yaw: f32, roll: f32) -> glm::Mat3 {
     pitch_matrix * yaw_matrix * roll_matrix
 }
 
-fn apply_rotation_matrix(matrix: &glm::Mat4, rot: glm::Vec3) -> glm::Mat4 {
+fn apply_rotation(matrix: &glm::Mat4, rot: glm::Vec3) -> glm::Mat4 {
     let mut temp = utils::mat_ident();
     let rot = create_rotation_matrix(rot.x, rot.y, rot.z);
     // println!("created rot: {:#?}", rot);
@@ -141,7 +142,7 @@ impl Mesh {
         shader.use_shader();
 
         let model_mat = glm::ext::scale(&utils::mat_ident(), self.scale);
-        let model_mat = apply_rotation_matrix(&model_mat, self.rotation);
+        let model_mat = apply_rotation(&model_mat, self.rotation);
         let model_mat = glm::ext::translate(&model_mat, self.position);
         shader.set_mat4fv("model", &model_mat);
 
@@ -155,15 +156,19 @@ impl Mesh {
         for i in 0..self.textures.len() {
             unsafe {
                 gl::ActiveTexture(gl::TEXTURE0 + i as u32);
-                let name = self.textures[i].typ.as_str();
-
-                if name == "texture_diffuse" {
-                    diffuse += 1;
-                } else if name == "texture_specular" {
-                    specular += 1;
+                match self.textures[i].typ {
+                    russimp::material::TextureType::Diffuse => {
+                        diffuse += 1;
+                        shader.set_int(format!("material.texture_diffuse{}", diffuse).as_str(), i as i32);
+                    },
+                    russimp::material::TextureType::Specular => {
+                        specular += 1;
+                        shader.set_int(format!("material.texture_specular{}", specular).as_str(), i as i32);
+                    },
+                    _ => {}, // don't do anything because unsupported texture types are logged
+                             // when the model is loaded
                 }
 
-                shader.set_int(format!("material.{}{}", name, if name == "texture_diffuse" { diffuse } else { specular }).as_str(), i as i32);
                 gl::BindTexture(gl::TEXTURE_2D, self.textures[i].id);
             }
         }
@@ -201,20 +206,23 @@ impl Vertex {
 #[derive(Clone, Debug)]
 pub struct Texture {
     pub id: u32,
-    pub typ: String,
+    pub typ: russimp::material::TextureType,
     pub path: std::path::PathBuf,
 }
 
 impl Texture {
-    pub fn new(path: std::path::PathBuf, type_name: &str) -> Self {
-        // TODO: don't just explode here
-        let id = utils::load_texture(path.to_str().unwrap()).unwrap();
+    pub fn new(path: std::path::PathBuf, typ: russimp::material::TextureType) -> Result<Self, Box<dyn std::error::Error>> {
+        let path_str = match path.to_str() {
+            Some(path) => path,
+            None => return Err("Failed to convert texture path to string".into()),
+        };
+        let id = utils::load_texture(path_str)?;
 
-        Texture {
+        Ok(Texture {
             id,
-            typ: type_name.to_string(),
+            typ,
             path,
-        }
+        })
     }
 }
 

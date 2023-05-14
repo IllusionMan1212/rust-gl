@@ -1,5 +1,4 @@
 use glad_gl::gl;
-use mint;
 
 use crate::{camera::Camera, model, imgui_glfw_support, imgui_opengl_renderer, mesh, ui, log};
 
@@ -11,7 +10,7 @@ pub struct State {
     pub camera: Camera,
     pub objects: Vec<model::Model>,
     pub viewport_size: [f32; 2],
-    log: log::Log,
+    pub log: log::Log,
 }
 
 impl Default for State {
@@ -72,11 +71,11 @@ pub fn draw_main_menu_bar(ui: &imgui::Ui, state: &mut State, window: &mut glfw::
                         None => return,
                     };
                 for model_path in &models {
-                    let model = model::Model::new(model_path.to_str().unwrap());
+                    let model = model::Model::new(model_path.to_str().unwrap(), state);
                     match model {
                         Ok(m) => state.objects.push(m),
                         Err(e) => {
-                            let error = format!("Error loading model: {}", e);
+                            let error = format!("Error loading model \"{}\": {}", model_path.to_str().unwrap(), e);
                             println!("{}", error);
 
                             state.log.history.push(log::LogMessage::new(log::LogLevel::Error, &error));
@@ -85,7 +84,6 @@ pub fn draw_main_menu_bar(ui: &imgui::Ui, state: &mut State, window: &mut glfw::
                 }
             }
             if ui.menu_item_config("Quit").shortcut("Ctrl+Q").build() {
-                // TODO: cleanup stuff
                 window.set_should_close(true);
             }
         });
@@ -97,10 +95,10 @@ pub fn draw_main_menu_bar(ui: &imgui::Ui, state: &mut State, window: &mut glfw::
                 state.draw_grid = !state.draw_grid;
             }
         });
-        let mut avail_size = mint::Vector2 { x: 0.0, y: 0.0 };
-        avail_size.x = *ui.content_region_avail().get(0).unwrap() - ui.calc_text_size(format!("FPS: {:.1}", 1.0 / delta_time))[0];
+        let fps = format!("FPS: {:.1}", 1.0 / delta_time);
+        let avail_size = [*ui.content_region_avail().get(0).unwrap() - ui.calc_text_size(&fps)[0], 0.0];
         ui.dummy(avail_size);
-        ui.text(format!("FPS: {:.1}", 1.0 / delta_time));
+        ui.text(&fps);
     });
 }
 
@@ -147,7 +145,7 @@ fn draw_mesh_hierarchy(ui: &imgui::Ui, mesh: &mut mesh::Mesh, i: usize) {
 
 fn draw_object_hierarchy(ui: &imgui::Ui, state: &mut State, idx: usize) -> bool {
     let object = &mut state.objects[idx];
-    if let Some(_t) = ui.begin_table_with_sizing("Objects Table", 2, imgui::TableFlags::SIZING_STRETCH_PROP, [0.0, 0.0], 0.0) {
+    if let Some(..) = ui.begin_table_with_sizing("Objects Table", 2, imgui::TableFlags::SIZING_STRETCH_PROP, [0.0, 0.0], 0.0) {
         ui.table_next_row();
         ui.table_next_column();
         ui.tree_node_config(format!("{}###{}", object.name.as_str(), idx))

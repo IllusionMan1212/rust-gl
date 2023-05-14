@@ -1,6 +1,11 @@
-use crate::{mesh::{Mesh, Vertex, Texture, Material}, shader::Shader, utils};
+use crate::{mesh::{Mesh, Vertex, Texture, Material}, shader::Shader, utils, ui::ui, log};
 use russimp;
-use anyhow::{Context, Result};
+use anyhow::{Result, anyhow};
+
+const SUPPORTED_TEXTURE_TYPES: [russimp::material::TextureType; 2] = [
+    russimp::material::TextureType::Diffuse,
+    russimp::material::TextureType::Specular,
+];
 
 #[derive(Debug)]
 pub struct Model {
@@ -15,7 +20,9 @@ fn process_node<'a>(
     dir: &std::path::PathBuf,
     loaded_textures: &mut Vec<Texture>,
     init_trans: &glm::Mat4,
-) {
+) -> Vec<Box<dyn std::error::Error>> {
+    let mut errors = vec![];
+
     let node_trans = glm::mat4(
         node.transformation.a1, node.transformation.a2, node.transformation.a3, node.transformation.a4,
         node.transformation.b1, node.transformation.b2, node.transformation.b3, node.transformation.b4,
@@ -24,19 +31,24 @@ fn process_node<'a>(
     );
     let mut new_trans = *init_trans * node_trans;
 
-    // println!("node: {}", node.name);
+    println!("node: {}", node.name);
     // println!("{:#?}", node_trans);
     // println!("{:#?}", node.metadata);
     // println!("{:#?}", node.transformation);
 
     for i in 0..node.meshes.len() {
         let mesh = &scene.meshes[node.meshes[i] as usize];
-        meshes.push(process_mesh(mesh, scene, dir, loaded_textures, &mut new_trans));
+        let (processed_mesh, mut errs) = process_mesh(mesh, scene, dir, loaded_textures, &mut new_trans);
+        errors.append(&mut errs);
+        meshes.push(processed_mesh);
     }
 
     for child in node.children.borrow().clone().into_iter() {
-        process_node(&child, scene, meshes, dir, loaded_textures, &node_trans);
+        let mut errs = process_node(&child, scene, meshes, dir, loaded_textures, &node_trans);
+        errors.append(&mut errs);
     }
+
+    return errors;
 }
 
 fn process_mesh(
@@ -45,7 +57,7 @@ fn process_mesh(
     dir: &std::path::PathBuf,
     loaded_textures: &mut Vec<Texture>,
     transformation: &mut glm::Mat4,
-) -> Mesh {
+) -> (Mesh, Vec<Box<dyn std::error::Error>>) {
     let mut vertices = vec![];
     let mut indices = vec![];
     let mut textures = vec![];
@@ -70,6 +82,8 @@ fn process_mesh(
         vertices.push(Vertex::new(pos.truncate(3), norm, tex_coords));
     }
 
+    println!("mesh: {}", mesh.name);
+
     for i in 0..mesh.faces.len() {
         for j in 0..mesh.faces[i].0.len() {
             indices.push(mesh.faces[i].0[j]);
@@ -83,13 +97,11 @@ fn process_mesh(
 
     let material = process_material(mat);
 
-    let mut diffuse_maps = load_material_textures(mat, russimp::material::TextureType::Diffuse, "texture_diffuse", dir, loaded_textures);
-    textures.append(&mut diffuse_maps);
-    let mut specular_maps = load_material_textures(mat, russimp::material::TextureType::Specular, "texture_specular", dir, loaded_textures);
-    textures.append(&mut specular_maps);
+    let (mut found_textures, errs) = load_material_textures(mat, dir, loaded_textures);
+    textures.append(&mut found_textures);
 
-
-    return Mesh::new(mesh.name.as_str(), vertices, indices, textures, material, transformation);
+    let mesh = Mesh::new(mesh.name.as_str(), vertices, indices, textures, material, transformation);
+    return (mesh, errs);
 }
 
 fn process_material(mat: &russimp::material::Material) -> Material {
@@ -151,17 +163,17 @@ fn process_material(mat: &russimp::material::Material) -> Material {
 
 fn load_material_textures(
     mat: &russimp::material::Material,
-    tex_type: russimp::material::TextureType,
-    type_name: &str,
     dir: &std::path::PathBuf,
     loaded_textures: &mut Vec<Texture>
-) -> Vec<Texture> {
+) -> (Vec<Texture>, Vec<Box<dyn std::error::Error>>) {
+
     let mut textures = vec![];
+    let mut errors = vec![];
 
     println!("there exists '{}' textures in this material", mat.textures.len());
 
     for (typ, tex) in mat.textures.iter() {
-        if *typ == tex_type {
+        if SUPPORTED_TEXTURE_TYPES.contains(typ) {
             let texture = tex.borrow();
             let mut skip = false;
             let tex_filename = &texture.filename;
@@ -181,23 +193,38 @@ fn load_material_textures(
             }
 
             if !skip {
-                let texture = Texture::new(path, type_name);
-                loaded_textures.push(texture.clone());
-                textures.push(texture);
+                match Texture::new(path, *typ) {
+                    Ok(texture) => {
+                        loaded_textures.push(texture.clone());
+                        textures.push(texture);
+                    },
+                    Err(e) => {
+                        let err = anyhow!("Error loading texture: {}", e);
+                        println!("{}", err);
+                        errors.push(err.into());
+                    },
+                }
             }
         }
     }
 
-    return textures;
+    return (textures, errors);
 }
 
 impl Model {
-    pub fn new(path: &str) -> Result<Self, Box<dyn std::error::Error>>  {
+    pub fn new(path: &str, state: &mut ui::State) -> Result<Self, Box<dyn std::error::Error>>  {
         let scene = russimp::scene::Scene::from_file(path,
             vec![
             russimp::scene::PostProcess::Triangulate,
             russimp::scene::PostProcess::FlipUVs,
-            ]).with_context(|| format!("Failed to load model at {}", path))?;
+            ])
+            .map_err(|e| {
+                let e = match e {
+                    russimp::RussimpError::TextureNotFound => anyhow!("Texture not found"),
+                    _ => anyhow!("{}", e)
+                };
+                return e;
+            })?;
 
         let root_node = match &scene.root {
             Some(root) => root,
@@ -213,13 +240,17 @@ impl Model {
 
         // TODO: handle fbx metadata that contains the indices and values of the proper axes
         // reference: https://github.com/assimp/assimp/issues/849#issuecomment-538982013
-        println!("scene metadata {:#?}", scene.metadata);
-        println!("root metadata {:#?}", root_node.metadata);
+        // println!("scene metadata {:#?}", scene.metadata);
+        // println!("root metadata {:#?}", root_node.metadata);
 
         let mut loaded_textures = vec![];
         let mut meshes = vec![];
         let init_trans_mat = utils::mat_ident();
-        process_node(&root_node, &scene, &mut meshes, &directory, &mut loaded_textures, &init_trans_mat);
+        let errors = process_node(&root_node, &scene, &mut meshes, &directory, &mut loaded_textures, &init_trans_mat);
+
+        for err in errors {
+            state.log.history.push(log::LogMessage::new(log::LogLevel::Warning, &err.to_string()));
+        }
 
         Ok(Model {
             name: root_node.name.to_owned(),

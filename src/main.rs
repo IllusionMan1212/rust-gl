@@ -154,7 +154,7 @@ fn main() -> anyhow::Result<(), Box<dyn std::error::Error>> {
         mesh_shader.set_3fv("dirLight.diffuse", glm::vec3(0.5, 0.5, 0.5));
         mesh_shader.set_3fv("dirLight.specular", glm::vec3(1.0, 1.0, 1.0));
 
-        let lantern = model::Model::new("models/Lantern.gltf")?;
+        let lantern = model::Model::new("models/Lantern.gltf", &mut state)?;
         state.objects.push(lantern);
 
         let scene_fb = create_scene_framebuffer();

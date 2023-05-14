@@ -1,8 +1,12 @@
 use glad_gl::gl;
 use glm;
+use anyhow::{Result, Context};
 
-pub fn load_texture(path: &str) -> Result<u32, image::error::ImageError> {
-    let tex = image::io::Reader::open(path)?.decode()?;
+pub fn load_texture(path: &str) -> Result<u32> {
+    let tex = image::io::Reader::open(path)
+        .with_context(|| format!("Failed to open texture file: {}", path))?
+        .decode()
+        .with_context(|| format!("Failed to decode texture: {}", path))?;
 
     let mut texture_id: u32 = 0;
     let format = match tex.color().channel_count() {

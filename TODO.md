@@ -8,23 +8,23 @@
 - graphics
     - [x] better grid
     - [x] get the basic material properties ($clr.diffuse, $clr.ambient, etc..) from the mesh material and apply them to the shader
-    - [ ] get the rest of the material properties
-    - [ ] some models (.glb only i think) have textures under the materials but they don't have names and no heights (investigate)
-    - [ ] other models have the textures as material properties with a "$tex." prefix for the property key
+    - [ ] (FEAT) get the rest of the material properties
+    - [ ] (FEAT) some models (.glb only i think) have textures under the materials but they don't have names and no heights (investigate)
+    - [ ] (FEAT) other models have the textures as material properties with a "$tex." prefix for the property key
     - [x] default normals and tex coords incase they are missing (default to 0.0 for all)
     - [|] models with more than a single mesh have all their meshes loaded at 0.0, 0.0, 0.0 with a default rotation of 0.0. apply transforms to meshes
         - [x] some gltf models seem to have a weird transform applied to them (investigate) (possibly related to rotations, no idea if assimp is parsing them incorrectly or im doing something wrong)
         - [x] seems like the position and scale is applied correctly now, still need to properly extract the rotation from the transform matrix and apply that as well
-        - [ ] some gltf models still don't have the correct transform applied to them (rotations ??)
+        - [ ] (BUG?) some gltf models still don't have the correct transform applied to them (rotations ??)
     - [x] russimp panics when unwrapping an option that relates to materials when loading the ToyCar.glb/gltf model
-    - [ ] normalize shininess value (seems to range anywhere from 0.0 to 500.0+) (read assimp docs)
-    - [ ] parse nodes and show them in the UI instead of only showing meshes
-    - [ ] when parsing a model, if the nodes have a parent list them under it, otherwise just throw the nodes as they are in the scene
-    - [ ] .fbx (and others ??) that are exported from blender (or is this just how the format is?) have metadata that contains the proper axes for the model (up, front) and unit scale factors and other data
+    - [ ] (FEAT) normalize shininess value (seems to range anywhere from 0.0 to 500.0+) (read assimp docs)
+    - [ ] (FEAT) parse nodes and show them in the UI instead of only showing meshes
+    - [ ] (FEAT) when parsing a model, if the nodes have a parent list them under it, otherwise just throw the nodes as they are in the scene
+    - [ ] (FEAT) .fbx (and others ??) that are exported from blender (or is this just how the format is?) have metadata that contains the proper axes for the model (up, front) and unit scale factors and other data
     - [x] when scaling a node that is the child of another node, it applies both a scale and a translation to the child node (apparently they are SUPPOSED to be like this)
-        - [ ] scaling is currently done relative to 0.0, 0.0, 0.0, but in blender (and other programs?) it's relative to where the origin point of the mesh is
-        - [ ] i think hierarchical transformations are still not being applied correctly
-        - [ ] im also convinced rotations lose data when converted from a 3x3 matrix to euler angles (investigate)
-        - [ ] current rotation implementation is supposed to only work for non-negative scale factors, a better implementation is here https://math.stackexchange.com/a/3554913
-        - [ ] parent transformations need to be stored in each child's struct (or perhaps the nodes need to be linked lists so we can easily access the parent/child's properties if we need them) this is needed so when a parent changes transformation we can apply the parent's transformation as well
-    - [ ] object selection with outline
+        - [ ] (BUG?) scaling is currently done relative to 0.0, 0.0, 0.0, but in blender (and other programs?) it's relative to where the origin point of the mesh is
+        - [ ] (BUG?) i think hierarchical transformations are still not being applied correctly
+        - [ ] (BUG?) im also convinced rotations lose data when converted from a 3x3 matrix to euler angles (investigate)
+        - [ ] (BUG?) current rotation implementation is supposed to only work for non-negative scale factors, a better implementation is here https://math.stackexchange.com/a/3554913
+        - [ ] (BUG?) parent transformations need to be stored in each child's struct (or perhaps the nodes need to be linked lists so we can easily access the parent/child's properties if we need them) this is needed so when a parent changes transformation we can apply the parent's transformation as well
+    - [ ] (FEAT) object selection with outline
