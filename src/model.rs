@@ -235,8 +235,10 @@ impl Model {
             return Err("Scene is incomplete")?;
         }
 
-        // TODO: don't just explode here
-        let directory = std::path::Path::new(path).parent().unwrap().to_path_buf();
+        let directory = match std::path::Path::new(path).parent() {
+            Some(dir) => dir,
+            None => return Err("Model path has no parent directory".into()),
+        }.to_path_buf();
 
         // TODO: handle fbx metadata that contains the indices and values of the proper axes
         // reference: https://github.com/assimp/assimp/issues/849#issuecomment-538982013
