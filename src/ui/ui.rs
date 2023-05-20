@@ -78,7 +78,7 @@ pub fn draw_main_menu_bar(ui: &imgui::Ui, state: &mut State, window: &mut glfw::
                             let error = format!("Error loading model \"{}\": {}", model_path.to_str().unwrap(), e);
                             println!("{}", error);
 
-                            state.log.history.push(log::LogMessage::new(log::LogLevel::Error, &error));
+                            state.log.log(&error, log::LogLevel::Error);
                         },
                     }
                 }
@@ -160,7 +160,7 @@ fn draw_object_hierarchy(ui: &imgui::Ui, state: &mut State, idx: usize) -> bool 
             let output = format!("Removing object {}", object.name);
             println!("{}", output);
 
-            state.log.history.push(log::LogMessage::new(log::LogLevel::Info, &output));
+            state.log.log(&output, log::LogLevel::Info);
             return true;
         }
     }

@@ -39,13 +39,15 @@ impl LogMessage {
 
 pub struct Log {
     pub history: Vec<LogMessage>,
-    pub history_index: i32,
 }
 
 impl Log {
     pub fn clear(&mut self) {
         self.history.clear();
-        self.history_index = 0;
+    }
+
+    pub fn log(&mut self, message: &str, level: LogLevel) {
+        self.history.push(LogMessage::new(level, message));
     }
 }
 
@@ -53,7 +55,6 @@ impl Default for Log {
     fn default() -> Self {
         Self {
             history: Vec::new(),
-            history_index: 0,
         }
     }
 }
