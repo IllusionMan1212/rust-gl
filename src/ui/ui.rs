@@ -2,10 +2,13 @@ use glad_gl::gl;
 
 use crate::{camera::Camera, model, imgui_glfw_support, imgui_opengl_renderer, mesh, ui, log};
 
+use std::time::{SystemTime, UNIX_EPOCH};
+
 pub struct State {
     pub camera_coords_shown: bool,
     pub is_cursor_captured: bool,
     pub draw_grid: bool,
+    pub wireframe: bool,
     pub first_frame_drawn: bool,
     pub camera: Camera,
     pub objects: Vec<model::Model>,
@@ -20,6 +23,7 @@ impl Default for State {
             first_frame_drawn: false,
             is_cursor_captured: false,
             draw_grid: true,
+            wireframe: false,
             camera: Camera::new(),
             objects: vec![],
             viewport_size: [0.0, 0.0],
@@ -271,6 +275,56 @@ fn draw_viewport(ui: &imgui::Ui, state: &mut State, texture: u32) {
             if ui.button("Reset Camera") {
                 state.camera.reset();
             }
+            ui.same_line();
+            if ui.button("Capture Scene") {
+                let mut w = 0;
+                let mut h = 0;
+
+                unsafe {
+                    gl::GetTextureLevelParameteriv(texture, 0, gl::TEXTURE_WIDTH, &mut w);
+                    gl::GetTextureLevelParameteriv(texture, 0, gl::TEXTURE_HEIGHT, &mut h);
+                }
+
+                let mut buf = vec![0u8; (w * h * 4) as usize];
+
+                unsafe {
+                    gl::GetTextureImage(texture, 0, gl::RGBA, gl::UNSIGNED_BYTE, (w * h * 4) as i32, buf.as_mut_ptr() as *mut std::ffi::c_void);
+                }
+
+                let timestamp = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .expect("Current time to not be before the UNIX epoch");
+                let file_name = format!("capture-{}.png", timestamp.as_secs());
+                let save_path = std::path::Path::new(file_name.as_str());
+                let capture = image::ImageBuffer::<image::Rgba<u8>, _>::from_raw(w as u32, h as u32, buf).unwrap();
+                let capture = image::DynamicImage::ImageRgba8(capture);
+                let capture = capture.flipv();
+                let capture = capture.resize_exact(size[0] as u32, size[1] as u32, image::imageops::FilterType::Gaussian);
+                let _ = capture.save(save_path);
+
+                state.log.log(
+                    format!("Scene capture saved to: {} successfully",
+                        save_path
+                        .canonicalize()
+                        .expect("Capture path to be canonicalized")
+                        .to_str()
+                        .expect("Capture path to be valid unicode"))
+                    .as_str(),
+                    log::LogLevel::Info);
+
+                unsafe {
+                    gl::BindFramebuffer(gl::FRAMEBUFFER, 0);
+                }
+            }
+            ui.same_line();
+            ui.checkbox("Wireframe", &mut state.wireframe);
+            ui.same_line();
+            ui.set_next_item_width(200.0);
+            imgui::Drag::new("Camera Speed")
+                .range(1.0, 10000.0)
+                .speed(1.0)
+                .display_format("%.3f")
+                .build(ui, &mut state.camera.speed);
             imgui::Image::new(imgui::TextureId::new(texture.try_into().unwrap()), size)
                 // flip the image vertically
                 .uv0([0.0, 1.0])

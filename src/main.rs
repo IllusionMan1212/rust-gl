@@ -124,7 +124,7 @@ fn main() -> anyhow::Result<(), Box<dyn std::error::Error>> {
 
         grid_shader.use_shader();
         grid_shader.set_float("near", 0.01);
-        grid_shader.set_float("far", 100.0);
+        grid_shader.set_float("far", 200.0);
 
         mesh_shader.use_shader();
 
@@ -154,7 +154,7 @@ fn main() -> anyhow::Result<(), Box<dyn std::error::Error>> {
         mesh_shader.set_3fv("dirLight.diffuse", glm::vec3(0.5, 0.5, 0.5));
         mesh_shader.set_3fv("dirLight.specular", glm::vec3(1.0, 1.0, 1.0));
 
-        let lantern = model::Model::new("models/Lantern.gltf", &mut state)?;
+        let lantern = model::Model::new("models/lantern/Lantern.gltf", &mut state)?;
         state.objects.push(lantern);
 
         let scene_fb = create_scene_framebuffer();
@@ -172,10 +172,12 @@ fn main() -> anyhow::Result<(), Box<dyn std::error::Error>> {
 
             // camera matrices
             let view_mat = glm::ext::look_at(state.camera.position, state.camera.position + state.camera.front, state.camera.up);
-            let projection_mat = glm::ext::perspective(glm::radians(state.camera.fov), state.viewport_size[0] / state.viewport_size[1], 0.01, 100.0);
+            let projection_mat = glm::ext::perspective(glm::radians(state.camera.fov), state.viewport_size[0] / state.viewport_size[1], 0.01, 200.0);
 
             for (_, event) in glfw::flush_messages(&events) {
-                glfw_platform.handle_event(imgui.io_mut(), &window, &event);
+                if !state.is_cursor_captured {
+                    glfw_platform.handle_event(imgui.io_mut(), &window, &event);
+                }
                 handle_window_event(&mut window, &event, &mesh_shader, &mut state);
                 match event {
                     glfw::WindowEvent::CursorPos(xpos, ypos) => {
@@ -205,7 +207,7 @@ fn main() -> anyhow::Result<(), Box<dyn std::error::Error>> {
             gl::Enable(gl::DEPTH_TEST);
             gl::Enable(gl::BLEND);
             gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
-            gl::ClearColor(0.1, 0.1, 0.1, 1.0);
+            gl::ClearColor(0.2, 0.2, 0.2, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
 
             mesh_shader.use_shader();
@@ -218,8 +220,14 @@ fn main() -> anyhow::Result<(), Box<dyn std::error::Error>> {
             mesh_shader.set_3fv("viewPos", state.camera.position);
 
             for obj in &state.objects {
+                if state.wireframe {
+                    gl::PolygonMode(gl::FRONT_AND_BACK, gl::LINE);
+                } else {
+                    gl::PolygonMode(gl::FRONT_AND_BACK, gl::FILL);
+                }
                 obj.draw(&mesh_shader);
             }
+            gl::PolygonMode(gl::FRONT_AND_BACK, gl::FILL);
 
             light_shader.use_shader();
             light_shader.set_mat4fv("view", &view_mat);
@@ -290,7 +298,7 @@ fn handle_window_event(window: &mut glfw::Window, event: &glfw::WindowEvent, sha
         glfw::WindowEvent::Key(Key::LeftShift, _, Action::Release, _) => {
             state.camera.speed /= 5.0;
         }
-        glfw::WindowEvent::Key(Key::Tab, _, Action::Press, _) => {
+        glfw::WindowEvent::Key(Key::GraveAccent, _, Action::Press, _) => {
             state.is_cursor_captured = !state.is_cursor_captured;
             if state.is_cursor_captured {
                 window.set_cursor_mode(glfw::CursorMode::Disabled);
