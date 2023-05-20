@@ -93,12 +93,14 @@ fn process_mesh(
     // println!("material count: {}", scene.materials.len());
     // println!("material index: {}", mesh.material_index);
     let mat = &scene.materials[mesh.material_index as usize];
-    // println!("{:?}", mat);
+    println!("{:#?}", mat);
 
     let material = process_material(mat);
 
     let (mut found_textures, errs) = load_material_textures(mat, dir, loaded_textures);
     textures.append(&mut found_textures);
+
+    println!("{:#?}", textures);
 
     let mesh = Mesh::new(mesh.name.as_str(), vertices, indices, textures, material, transformation);
     return (mesh, errs);
@@ -172,12 +174,53 @@ fn load_material_textures(
 
     println!("there exists '{}' textures in this material", mat.textures.len());
 
+    for prop in mat.properties.iter() {
+        let mut skip = false;
+
+        match prop.key.as_str() {
+            "$tex.file" => {
+                let tex_filename = match &prop.data {
+                    russimp::material::PropertyTypeInfo::String(s) => {
+                        s
+                    },
+                    _ => panic!("Property should not be this type: {}", prop.key)
+                };
+
+                let path = dir.join(tex_filename.replace("\\", "/"));
+
+                for loaded_tex in &mut *loaded_textures {
+                    if loaded_tex.path == path {
+                        textures.push(loaded_tex.clone());
+                        skip = true;
+                        break;
+                    }
+                }
+
+                if !skip {
+                    match Texture::new(path, prop.semantic) {
+                        Ok(texture) => {
+                            loaded_textures.push(texture.clone());
+                            textures.push(texture);
+                        },
+                        Err(e) => {
+                            let err = anyhow!("Error loading texture: {}", e);
+                            println!("{}", err);
+                            errors.push(err.into());
+                        }
+                    }
+                }
+            },
+            _ => {}
+        }
+    }
+
     for (typ, tex) in mat.textures.iter() {
         if SUPPORTED_TEXTURE_TYPES.contains(typ) {
             let texture = tex.borrow();
             let mut skip = false;
             let tex_filename = &texture.filename;
             // HACK: fix this
+            println!("embedded texture: {:?}", tex);
             if tex_filename.is_empty() {
                 continue;
             }
@@ -207,6 +250,7 @@ fn load_material_textures(
             }
         }
     }
+
 
     return (textures, errors);
 }

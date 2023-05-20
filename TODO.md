@@ -28,3 +28,5 @@
         - [ ] (BUG?) current rotation implementation is supposed to only work for non-negative scale factors, a better implementation is here https://math.stackexchange.com/a/3554913
         - [ ] (BUG?) parent transformations need to be stored in each child's struct (or perhaps the nodes need to be linked lists so we can easily access the parent/child's properties if we need them) this is needed so when a parent changes transformation we can apply the parent's transformation as well
     - [ ] (FEAT) object selection with outline
+    - [ ] (BUG) models with colored materials only and no textures are rendered with an almost black color due to the non-existent texture in the shader affecting how the model should absorb light
+    - [ ] (BUG) performance completely shits itself on ABeautifulGame.gltf when in wireframe mode

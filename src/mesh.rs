@@ -212,7 +212,12 @@ pub struct Texture {
 
 impl Texture {
     pub fn new(path: std::path::PathBuf, typ: russimp::material::TextureType) -> Result<Self, Box<dyn std::error::Error>> {
-        let path_str = match path.to_str() {
+        let canon_path = match path.canonicalize() {
+            Ok(path) => path,
+            Err(e) => return Err(format!("Failed to canonicalize texture path: {:?}: {}", path, e).into()),
+        };
+
+        let path_str = match canon_path.to_str() {
             Some(path) => path,
             None => return Err("Failed to convert texture path to string".into()),
         };
