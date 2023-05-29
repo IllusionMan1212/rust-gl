@@ -1,6 +1,7 @@
 
 #[derive(Clone)]
 pub enum LogLevel {
+    Debug,
     Info,
     Warning,
     Error,
@@ -9,6 +10,7 @@ pub enum LogLevel {
 impl From<LogLevel> for mint::Vector4<f32> {
     fn from(level: LogLevel) -> Self {
         match level {
+            LogLevel::Debug => [0.5, 0.5, 1.0, 1.0].into(),
             LogLevel::Info => [0.5, 0.5, 0.5, 1.0].into(),
             LogLevel::Warning => [1.0, 0.64, 0.0, 1.0].into(),
             LogLevel::Error => [1.0, 0.0, 0.0, 1.0].into(),
@@ -25,6 +27,7 @@ pub struct LogMessage {
 impl LogMessage {
     pub fn new(level: LogLevel, message: &str) -> Self {
         let severity = match level {
+            LogLevel::Debug => "DEBUG",
             LogLevel::Info => "INFO",
             LogLevel::Warning => "WARNING",
             LogLevel::Error => "ERROR",

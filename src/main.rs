@@ -178,7 +178,7 @@ fn main() -> anyhow::Result<(), Box<dyn std::error::Error>> {
                 if !state.is_cursor_captured {
                     glfw_platform.handle_event(imgui.io_mut(), &window, &event);
                 }
-                handle_window_event(&mut window, &event, &mesh_shader, &mut state);
+                handle_window_event(&mut window, &event, &mut state);
                 match event {
                     glfw::WindowEvent::CursorPos(xpos, ypos) => {
                         if first_mouse {
@@ -279,18 +279,10 @@ fn draw_grid(shader: &rust_gl::shader::Shader, view_mat: &glm::Mat4, projection_
     }
 }
 
-fn handle_window_event(window: &mut glfw::Window, event: &glfw::WindowEvent, shader: &rust_gl::shader::Shader, state: &mut ui::State) {
+fn handle_window_event(window: &mut glfw::Window, event: &glfw::WindowEvent, state: &mut ui::State) {
     match event {
         glfw::WindowEvent::Key(Key::Q, _, Action::Press, Modifiers::Control) => {
             window.set_should_close(true);
-        }
-        glfw::WindowEvent::Key(Key::Up, _, Action::Press, _) => {
-            shader.use_shader();
-            shader.set_float("mixValue", shader.get_float("mixValue") + 0.1);
-        }
-        glfw::WindowEvent::Key(Key::Down, _, Action::Press, _) => {
-            shader.use_shader();
-            shader.set_float("mixValue", shader.get_float("mixValue") - 0.1);
         }
         glfw::WindowEvent::Key(Key::LeftShift, _, Action::Press, _) => {
             state.camera.speed *= 5.0;

@@ -201,6 +201,9 @@ fn draw_log(ui: &imgui::Ui, state: &mut State) {
                         ui.text_wrapped(line.message.clone());
                         style.pop();
                     }
+                    if ui.scroll_y() >= ui.scroll_max_y() {
+                        ui.set_scroll_here_y_with_ratio(1.0);
+                    }
                 });
 
             ui.separator();
@@ -277,6 +280,7 @@ fn draw_viewport(ui: &imgui::Ui, state: &mut State, texture: u32) {
             }
             ui.same_line();
             if ui.button("Capture Scene") {
+                let now = std::time::Instant::now();
                 let mut w = 0;
                 let mut h = 0;
 
@@ -285,10 +289,10 @@ fn draw_viewport(ui: &imgui::Ui, state: &mut State, texture: u32) {
                     gl::GetTextureLevelParameteriv(texture, 0, gl::TEXTURE_HEIGHT, &mut h);
                 }
 
-                let mut buf = vec![0u8; (w * h * 4) as usize];
+                let mut pixels = vec![0u8; (w * h * 4) as usize];
 
                 unsafe {
-                    gl::GetTextureImage(texture, 0, gl::RGBA, gl::UNSIGNED_BYTE, (w * h * 4) as i32, buf.as_mut_ptr() as *mut std::ffi::c_void);
+                    gl::GetTextureImage(texture, 0, gl::RGBA, gl::UNSIGNED_BYTE, (w * h * 4) as i32, pixels.as_mut_ptr() as *mut std::ffi::c_void);
                 }
 
                 let timestamp = SystemTime::now()
@@ -296,11 +300,12 @@ fn draw_viewport(ui: &imgui::Ui, state: &mut State, texture: u32) {
                     .expect("Current time to not be before the UNIX epoch");
                 let file_name = format!("capture-{}.png", timestamp.as_secs());
                 let save_path = std::path::Path::new(file_name.as_str());
-                let capture = image::ImageBuffer::<image::Rgba<u8>, _>::from_raw(w as u32, h as u32, buf).unwrap();
+                let capture = image::ImageBuffer::<image::Rgba<u8>, _>::from_raw(w as u32, h as u32, pixels).unwrap();
                 let capture = image::DynamicImage::ImageRgba8(capture);
                 let capture = capture.flipv();
                 let capture = capture.resize_exact(size[0] as u32, size[1] as u32, image::imageops::FilterType::Gaussian);
                 let _ = capture.save(save_path);
+                let elapsed = now.elapsed();
 
                 state.log.log(
                     format!("Scene capture saved to: {} successfully",
@@ -311,6 +316,12 @@ fn draw_viewport(ui: &imgui::Ui, state: &mut State, texture: u32) {
                         .expect("Capture path to be valid unicode"))
                     .as_str(),
                     log::LogLevel::Info);
+
+                state.log.log(
+                    format!("Scene capture took: {}ms",
+                        elapsed.as_millis())
+                    .as_str(),
+                    log::LogLevel::Debug);
 
                 unsafe {
                     gl::BindFramebuffer(gl::FRAMEBUFFER, 0);
