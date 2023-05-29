@@ -15,7 +15,8 @@
     - [|] models with more than a single mesh have all their meshes loaded at 0.0, 0.0, 0.0 with a default rotation of 0.0. apply transforms to meshes
         - [x] some gltf models seem to have a weird transform applied to them (investigate) (possibly related to rotations, no idea if assimp is parsing them incorrectly or im doing something wrong)
         - [x] seems like the position and scale is applied correctly now, still need to properly extract the rotation from the transform matrix and apply that as well
-        - [ ] (BUG?) some gltf models still don't have the correct transform applied to them (rotations ??)
+        - [ ] (BUG?) some gltf models still don't have the correct transform applied to them (rotations ??) (made some progress by fixing rotations)
+        - [ ] (CONFIRMED BUG) I know for a fact that there's some sign fuckery going on when applying transformations, because when importing ABeautifulGame.glb the white knights have their z axis negative when it's supposed to be positive (online gltf viewers show the z as negative but the mesh is placed correctly??)
     - [x] russimp panics when unwrapping an option that relates to materials when loading the ToyCar.glb/gltf model
     - [ ] (FEAT) normalize shininess value (seems to range anywhere from 0.0 to 500.0+) (read assimp docs)
     - [ ] (FEAT) parse nodes and show them in the UI instead of only showing meshes

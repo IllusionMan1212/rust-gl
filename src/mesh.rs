@@ -22,11 +22,35 @@ fn decompose_mat(matrix: &mut glm::Mat4) -> (glm::Vec3, glm::Vec3, glm::Vec3) {
 
     // println!("original rot: {:#?}", matrix);
 
-    let roll = matrix[1][0].atan2(matrix[0][0]).to_degrees();
-    let yaw = (-matrix[2][0]).atan2((matrix[2][1].powi(2) + matrix[2][2].powi(2)).sqrt()).to_degrees();
-    let pitch = matrix[2][1].atan2(matrix[2][2]).to_degrees();
+    let mut pitch = 0.0;
+    let mut yaw = 0.0;
+    let mut roll = 0.0;
+
+    // source: https://www.geometrictools.com/Documentation/EulerAngles.pdf
+    if matrix[0][2] < 1.0 {
+        if matrix[0][2] > -1.0 {
+            pitch = (-matrix[1][2]).atan2(matrix[2][2]).to_degrees();
+            yaw = matrix[0][2].asin().to_degrees();
+            roll = (-matrix[0][1]).atan2(matrix[0][0]).to_degrees();
+        } else {
+            pitch = -(matrix[1][0].atan2(matrix[1][1])).to_degrees();
+            yaw = -(std::f32::consts::FRAC_PI_2).to_degrees();
+            roll = 0.0;
+        }
+    } else {
+        pitch = matrix[1][0].atan2(matrix[1][1]).to_degrees();
+        yaw = std::f32::consts::FRAC_PI_2.to_degrees();
+        roll = 0.0;
+    }
+    // let pitch = matrix[2][1].atan2(matrix[2][2]).to_degrees();
+    // let yaw = (-matrix[2][0]).atan2((matrix[2][1].powi(2) + matrix[2][2].powi(2)).sqrt()).to_degrees();
+    // let roll = matrix[1][0].atan2(matrix[0][0]).to_degrees();
 
     let rotation = glm::vec3(pitch, yaw, roll);
+
+    println!("pos: {:#?}", pos);
+    println!("rot: {:#?}", rotation);
+    println!("scale: {:#?}", scale);
 
     (pos, rotation, scale)
 }

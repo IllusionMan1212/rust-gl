@@ -34,7 +34,7 @@ fn process_node<'a>(
     println!("node: {}", node.name);
     // println!("{:#?}", node_trans);
     // println!("{:#?}", node.metadata);
-    // println!("{:#?}", node.transformation);
+    println!("{:#?}", node.transformation);
 
     for i in 0..node.meshes.len() {
         let mesh = &scene.meshes[node.meshes[i] as usize];
@@ -44,7 +44,7 @@ fn process_node<'a>(
     }
 
     for child in node.children.borrow().clone().into_iter() {
-        let mut errs = process_node(&child, scene, meshes, dir, loaded_textures, &node_trans);
+        let mut errs = process_node(&child, scene, meshes, dir, loaded_textures, &new_trans);
         errors.append(&mut errs);
     }
 
@@ -170,7 +170,7 @@ fn load_material_textures(
     let mut textures = vec![];
     let mut errors = vec![];
 
-    println!("there exists '{}' textures in this material", mat.textures.len());
+    // println!("there exists '{}' textures in this material", mat.textures.len());
 
     for (typ, tex) in mat.textures.iter() {
         if SUPPORTED_TEXTURE_TYPES.contains(typ) {
