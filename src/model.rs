@@ -1,6 +1,8 @@
-use crate::{mesh::{Mesh, Vertex, Texture, Material}, shader::Shader, utils, ui::ui, log};
+use glad_gl::gl;
 use russimp;
 use anyhow::{Result, anyhow};
+
+use crate::{mesh::{Mesh, Vertex, Texture, Material}, shader::Shader, utils, ui::ui, log};
 
 const SUPPORTED_TEXTURE_TYPES: [russimp::material::TextureType; 2] = [
     russimp::material::TextureType::Diffuse,
@@ -260,9 +262,26 @@ impl Model {
         })
     }
 
-    pub fn draw(&self, shader: &Shader) {
+    pub fn draw(&self, mesh_shader: &Shader, outline_shader: &Shader, selected_mesh: Option<u32>) {
         for mesh in &self.meshes {
-            mesh.draw(shader);
+            mesh_shader.use_shader();
+            unsafe {
+                gl::StencilFunc(gl::ALWAYS, 1, 0xff);
+                gl::StencilMask(0xff);
+            }
+            mesh.draw(mesh_shader);
+            if selected_mesh.is_some_and(|m| m == mesh.id) {
+                outline_shader.use_shader();
+                unsafe {
+                    gl::StencilFunc(gl::NOTEQUAL, 1, 0xff);
+                    gl::StencilMask(0x00);
+                    gl::Disable(gl::DEPTH_TEST);
+                    mesh.draw_outline(&outline_shader);
+                    gl::StencilMask(0xff);
+                    gl::StencilFunc(gl::ALWAYS, 0, 0xff);
+                    gl::Enable(gl::DEPTH_TEST);
+                }
+            }
         }
     }
 }

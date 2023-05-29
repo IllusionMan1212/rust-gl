@@ -26,6 +26,7 @@ fn main() -> anyhow::Result<(), Box<dyn std::error::Error>> {
     let mesh_shader = shader::Shader::new("shaders/vertex.glsl", "shaders/frag.glsl")?;
     let light_shader = shader::Shader::new("shaders/vertex.glsl", "shaders/light_f.glsl")?;
     let grid_shader = shader::Shader::new("shaders/grid_v.glsl", "shaders/grid_f.glsl")?;
+    let outline_shader = shader::Shader::new("shaders/outline_v.glsl", "shaders/outline_f.glsl")?;
 
     let vertices: [f32; 288] = [
         // positions // normals // texture coords
@@ -205,10 +206,13 @@ fn main() -> anyhow::Result<(), Box<dyn std::error::Error>> {
 
             gl::BindFramebuffer(gl::FRAMEBUFFER, scene_fb);
             gl::Enable(gl::DEPTH_TEST);
+            gl::Enable(gl::STENCIL_TEST);
             gl::Enable(gl::BLEND);
+            gl::StencilFunc(gl::NOTEQUAL, 1, 0xff);
+            gl::StencilOp(gl::KEEP, gl::KEEP, gl::REPLACE);
             gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
             gl::ClearColor(0.2, 0.2, 0.2, 1.0);
-            gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
+            gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT | gl::STENCIL_BUFFER_BIT);
 
             mesh_shader.use_shader();
 
@@ -219,13 +223,17 @@ fn main() -> anyhow::Result<(), Box<dyn std::error::Error>> {
             mesh_shader.set_3fv("spotLight.direction", state.camera.front);
             mesh_shader.set_3fv("viewPos", state.camera.position);
 
+            outline_shader.use_shader();
+            outline_shader.set_mat4fv("view", &view_mat);
+            outline_shader.set_mat4fv("projection", &projection_mat);
+
             for obj in &state.objects {
                 if state.wireframe {
                     gl::PolygonMode(gl::FRONT_AND_BACK, gl::LINE);
                 } else {
                     gl::PolygonMode(gl::FRONT_AND_BACK, gl::FILL);
                 }
-                obj.draw(&mesh_shader);
+                obj.draw(&mesh_shader, &outline_shader, state.selected_mesh);
             }
             gl::PolygonMode(gl::FRONT_AND_BACK, gl::FILL);
 
@@ -252,6 +260,7 @@ fn main() -> anyhow::Result<(), Box<dyn std::error::Error>> {
             gl::ClearColor(0.1, 0.1, 0.1, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT);
             gl::Disable(gl::DEPTH_TEST);
+            gl::Disable(gl::STENCIL_TEST);
             gl::Disable(gl::BLEND);
             ui::draw_ui(&mut imgui, &renderer, &glfw_platform, &mut window, &mut state, delta_time, &mut last_cursor, scene_texture);
 

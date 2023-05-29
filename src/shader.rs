@@ -113,4 +113,11 @@ impl Shader {
             gl::Uniform3fv(gl::GetUniformLocation(self.program_id, c_str.as_ptr()), 1, value.as_array() as *const f32);
         }
     }
+
+    pub fn set_4fv(&self, name: &str, value: glm::Vec4) {
+        let c_str = std::ffi::CString::new(name).unwrap();
+        unsafe {
+            gl::Uniform4fv(gl::GetUniformLocation(self.program_id, c_str.as_ptr()), 1, value.as_array() as *const f32);
+        }
+    }
 }

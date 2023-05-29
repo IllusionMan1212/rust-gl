@@ -57,7 +57,7 @@ fn create_rotation_matrix(pitch: f32, yaw: f32, roll: f32) -> glm::Mat3 {
     pitch_matrix * yaw_matrix * roll_matrix
 }
 
-fn apply_rotation(matrix: &glm::Mat4, rot: glm::Vec3) -> glm::Mat4 {
+pub fn apply_rotation(matrix: &glm::Mat4, rot: glm::Vec3) -> glm::Mat4 {
     let mut temp = utils::mat_ident();
     let rot = create_rotation_matrix(rot.x, rot.y, rot.z);
     // println!("created rot: {:#?}", rot);
@@ -73,6 +73,7 @@ fn apply_rotation(matrix: &glm::Mat4, rot: glm::Vec3) -> glm::Mat4 {
 
 #[derive(Debug)]
 pub struct Mesh {
+    pub id: u32,
     pub name: String,
     pub position: glm::Vec3,
     pub rotation: glm::Vec3,
@@ -123,6 +124,7 @@ impl Mesh {
         let (position, rotation, scale) = decompose_mat(transformation);
 
         Mesh {
+            id: vao,
             name: name.to_string(),
             vertices,
             indices,
@@ -180,6 +182,25 @@ impl Mesh {
 
             // reset stuff to default
             gl::ActiveTexture(gl::TEXTURE0);
+            gl::BindVertexArray(0);
+        }
+    }
+
+    pub fn draw_outline(&self, shader: &Shader) {
+        shader.use_shader();
+        shader.set_4fv("inColor", glm::vec4(248.0 / 255.0, 131.0 / 255.0, 8.0 / 255.0, 1.0));
+
+        let model_mat = glm::ext::translate(&utils::mat_ident(), self.position);
+        let model_mat = apply_rotation(&model_mat, self.rotation);
+        let model_mat = glm::ext::scale(&model_mat, self.scale);
+        shader.set_mat4fv("model", &model_mat);
+
+        unsafe {
+            // draw Mesh
+            gl::BindVertexArray(self.vao);
+            gl::DrawElements(gl::TRIANGLES, self.indices.len() as i32, gl::UNSIGNED_INT, std::ptr::null());
+
+            // reset stuff to default
             gl::BindVertexArray(0);
         }
     }

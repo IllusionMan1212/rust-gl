@@ -28,3 +28,5 @@
         - [ ] (BUG?) current rotation implementation is supposed to only work for non-negative scale factors, a better implementation is here https://math.stackexchange.com/a/3554913
         - [ ] (BUG?) parent transformations need to be stored in each child's struct (or perhaps the nodes need to be linked lists so we can easily access the parent/child's properties if we need them) this is needed so when a parent changes transformation we can apply the parent's transformation as well
     - [ ] (FEAT) object selection with outline
+        - [ ] double drawing outline sucks ass for lots of reasons (i dont wanna deal with the stencil buffer, if an object has its origin point not in the exact middle the outline will scale weirdly, different sized meshes will have different sized outlines, some too small, others too large) the solution is to do the outline in post-processing (https://stackoverflow.com/questions/41421229/what-other-ways-can-i-draw-the-outline-of-an-object)
+        - [ ] optimize the raycasting algo

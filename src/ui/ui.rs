@@ -1,8 +1,10 @@
 use glad_gl::gl;
 
-use crate::{camera::Camera, model, imgui_glfw_support, imgui_opengl_renderer, mesh, ui, log};
+use crate::{camera::Camera, model, imgui_glfw_support, imgui_opengl_renderer, mesh, ui, log, utils};
 
 use std::time::{SystemTime, UNIX_EPOCH};
+
+const EPSILON: f32 = 0.0001;
 
 pub struct State {
     pub camera_coords_shown: bool,
@@ -14,6 +16,7 @@ pub struct State {
     pub objects: Vec<model::Model>,
     pub viewport_size: [f32; 2],
     pub log: log::Log,
+    pub selected_mesh: Option<u32>,
 }
 
 impl Default for State {
@@ -28,6 +31,7 @@ impl Default for State {
             objects: vec![],
             viewport_size: [0.0, 0.0],
             log: log::Log::default(),
+            selected_mesh: None,
         }
     }
 }
@@ -325,11 +329,90 @@ fn draw_viewport(ui: &imgui::Ui, state: &mut State, texture: u32) {
                 .speed(1.0)
                 .display_format("%.3f")
                 .build(ui, &mut state.camera.speed);
+
+            let scene_pos = ui.cursor_screen_pos();
             imgui::Image::new(imgui::TextureId::new(texture.try_into().unwrap()), size)
                 // flip the image vertically
                 .uv0([0.0, 1.0])
                 .uv1([1.0, 0.0])
                 .build(ui);
+
+            if ui.is_mouse_clicked(imgui::MouseButton::Left) && ui.is_item_hovered() {
+                let local_pos = glm::vec2(ui.io().mouse_pos[0] - scene_pos[0], ui.io().mouse_pos[1] - scene_pos[1]);
+                // get mouse position in NDC
+                let mouse = glm::vec2(local_pos.x / (size[0] * 0.5) - 1.0, local_pos.y / (size[1] * 0.5) - 1.0);
+
+                // unproject coords to world space
+                let inv_view = glm::inverse(&glm::ext::look_at(state.camera.position, state.camera.position + state.camera.front, state.camera.up));
+                let inv_proj = glm::inverse(&glm::ext::perspective(glm::radians(state.camera.fov), state.viewport_size[0] / state.viewport_size[1], 0.01, 200.0));
+                let screen_pos = glm::vec4(mouse.x, -mouse.y, 0.0, 1.0);
+                let ray_orig =  inv_view * inv_proj * screen_pos;
+                let ray_orig = glm::vec3(ray_orig.x, ray_orig.y, ray_orig.z) / ray_orig.w;
+                let ray_dir = glm::normalize(ray_orig - state.camera.position);
+
+                // TODO: better performant raycast
+                'moller_trumbore: for obj in &state.objects {
+                    for mesh in &obj.meshes {
+                        let model_mat = glm::ext::scale(&utils::mat_ident(), mesh.scale);
+                        let model_mat = mesh::apply_rotation(&model_mat, mesh.rotation);
+                        let model_mat = glm::ext::translate(&model_mat, mesh.position);
+
+                        for i in (0..mesh.indices.len()).step_by(3) {
+                            let v0 = mesh.vertices[mesh.indices[i] as usize].position;
+                            let v0 = model_mat * glm::vec4(v0.x, v0.y, v0.z, 1.0);
+                            let v0 = glm::vec3(v0.x, v0.y, v0.z) / v0.w;
+                            let v1 = mesh.vertices[mesh.indices[i + 1] as usize].position;
+                            let v1 = model_mat * glm::vec4(v1.x, v1.y, v1.z, 1.0);
+                            let v1 = glm::vec3(v1.x, v1.y, v1.z) / v1.w;
+                            let v2 = mesh.vertices[mesh.indices[i + 2] as usize].position;
+                            let v2 = model_mat * glm::vec4(v2.x, v2.y, v2.z, 1.0);
+                            let v2 = glm::vec3(v2.x, v2.y, v2.z) / v2.w;
+
+                            let edge1 = v1 - v0;
+                            let edge2 = v2 - v0;
+
+                            let pvec = glm::cross(ray_dir, edge2);
+                            let determinant = glm::dot(edge1, pvec);
+
+                            if determinant.abs() < EPSILON {
+                                state.selected_mesh = None;
+                                continue;
+                            }
+
+                            let determinant_recip = 1.0 / determinant;
+                            let tvec = ray_orig - v0;
+                            let u = glm::dot(tvec, pvec) * determinant_recip;
+
+                            if u < 0.0 || u > 1.0 {
+                                state.selected_mesh = None;
+                                continue;
+                            }
+
+                            let qvec = glm::cross(tvec, edge1);
+                            let v = glm::dot(ray_dir, qvec) * determinant_recip;
+
+                            if v < 0.0 || u + v > 1.0 {
+                                state.selected_mesh = None;
+                                continue;
+                            }
+
+                            let t = glm::dot(edge2, qvec) * determinant_recip;
+
+                            if t > EPSILON {
+                                state.log.log("Selected mesh", log::LogLevel::Info);
+                                state.log.log(format!("Mesh ID: {}", mesh.id).as_str(), log::LogLevel::Info);
+                                state.log.log(format!("Mesh Name: {}", mesh.name).as_str(), log::LogLevel::Info);
+                                state.log.log(format!("Mesh Position: {:?}", mesh.position).as_str(), log::LogLevel::Info);
+
+                                state.selected_mesh = Some(mesh.id);
+                                break 'moller_trumbore;
+                            } else {
+                                state.selected_mesh = None;
+                            }
+                        }
+                    }
+                }
+            }
         });
 }
 
