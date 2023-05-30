@@ -29,3 +29,7 @@
         - [ ] (BUG?) current rotation implementation is supposed to only work for non-negative scale factors, a better implementation is here https://math.stackexchange.com/a/3554913
         - [ ] (BUG?) parent transformations need to be stored in each child's struct (or perhaps the nodes need to be linked lists so we can easily access the parent/child's properties if we need them) this is needed so when a parent changes transformation we can apply the parent's transformation as well
     - [ ] (FEAT) object selection with outline
+
+
+
+    - (CONFIRMED BUG) the problem with incorrect positioning of meshes is related to rotations being applied around 0.0, 0.0, 0.0 instead of the mesh's origin point. if we fix this I'm 100% sure (at least) ABeautifulGame.glb will have it's knights positions fixed and the (maybe) Buggy.glb will have its meshes positions fixed (russimp doesn't seem like it can get me the origin points of the meshes tho)
